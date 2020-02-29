@@ -11,7 +11,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && dpkg -i /expressvpn/${VERSION} \
     && rm -rf /expressvpn/*.deb \
 	&& rm -rf /var/lib/apt/lists/* \
-    && apt-get purge -y --auto-remove wget \
 	&& apt-get autoremove -y
 
 COPY ./entrypoint.sh /expressvpn/entrypoint.sh
