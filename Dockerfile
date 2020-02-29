@@ -16,4 +16,4 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY ./entrypoint.sh /expressvpn/entrypoint.sh
 COPY ./activate.sh /expressvpn/activate.sh
 
-ENTRYPOINT ["/bin/sh", "/expressvpn/entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "/expressvpn/entrypoint.sh"]

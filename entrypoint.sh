@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/usr/bin/bash
 service expressvpn restart
 /usr/bin/expect /expressvpn/activate.sh
 expressvpn connect $SERVER
