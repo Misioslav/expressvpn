@@ -20,4 +20,4 @@ FROM scratch
 
 COPY --from=build /expressvpn/ /expressvpn/
 
-ENTRYPOINT ["/bin/bash", "/expressvpn/entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/expressvpn/entrypoint.sh"]
