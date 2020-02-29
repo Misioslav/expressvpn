@@ -1,6 +1,6 @@
-FROM ubuntu:bionic
+FROM ubuntu:bionic AS build
 
-ENV CODE
+ENV CODE code
 ENV SERVER smart
 ARG EXPRESS=expressvpn_2.4.4.19-1_amd64.deb
 
@@ -15,5 +15,9 @@ RUN apt-get update && apt-get install -y \
 
 COPY entrypoint.sh /express/entrypoint.sh
 COPY activate.sh /express/activate.sh
+
+FROM scratch
+
+COPY --from=build /express/ /express/
 
 ENTRYPOINT ["/bin/bash", "/express/entrypoint.sh"]
