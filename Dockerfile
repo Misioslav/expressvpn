@@ -1,4 +1,4 @@
-FROM ubuntu:bionic AS build
+FROM ubuntu:bionic
 
 ENV CODE code
 ENV SERVER smart
