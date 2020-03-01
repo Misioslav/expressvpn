@@ -15,5 +15,6 @@ RUN apt-get update && apt-get install -y \
 
 COPY ./files/start.sh /expressvpn/start.sh
 COPY ./files/activate.sh /expressvpn/activate.sh
+COPY ./files/status.sh status.sh
 
 ENTRYPOINT ["/bin/bash", "/expressvpn/start.sh"]
