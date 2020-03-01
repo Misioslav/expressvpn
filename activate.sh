@@ -1,7 +1,7 @@
 #!/usr/bin/expect
 spawn expressvpn activate
 expect "Enter activation code:"
-send "$CODE\r"
-expect "information."
+send "$env(CODE)\r"
+expect "These reports never contain personally identifiable information."
 send "n\r"
 expect eof
