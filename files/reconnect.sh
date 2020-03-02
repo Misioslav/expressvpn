@@ -1,0 +1,3 @@
+#!/bin/sh
+
+expressvpn connect
