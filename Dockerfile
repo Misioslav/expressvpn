@@ -9,7 +9,7 @@ COPY ./files/activate.sh /expressvpn/activate.sh
 COPY ./files/status.sh status.sh
 COPY ./files/cron /etc/cron.d/cron
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     expect curl ca-certificates iproute2 cron wget \
     && wget -q https://download.expressvpn.xyz/clients/linux/${VERSION} -O /expressvpn/${VERSION} \
     && dpkg -i /expressvpn/${VERSION} \
