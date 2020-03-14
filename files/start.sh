@@ -1,10 +1,12 @@
 #!/usr/bin/bash
-cp /etc/resolv.conf /tmp/resolv.conf
-su -c 'umount /etc/resolv.conf'
-cp /tmp/resolv.conf /etc/resolv.conf
+cp /etc/resolv.conf /etc/resolv.conf.bak
+umount /etc/resolv.conf
+cp /etc/resolv.conf.bak /etc/resolv.conf
+rm /etc/resolv.conf.bak
 service expressvpn restart
 expect /expressvpn/activate.sh
 expressvpn connect $SERVER
+expressvpn protocol udp
 
 chmod 0644 /etc/cron.d/cron
 crontab /etc/cron.d/cron

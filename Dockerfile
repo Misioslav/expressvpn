@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && dpkg -i /expressvpn/${VERSION} \
     && rm -rf /expressvpn/*.deb \
     && rm -rf /var/lib/apt/lists/* \
-    && apt-get purge --autoremove -y wget
+    && apt-get purge --autoremove -y wget \
+	&& rm -rf /var/log/*.log
 
 ENTRYPOINT ["/bin/bash", "/expressvpn/start.sh"]
