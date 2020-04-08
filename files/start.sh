@@ -4,6 +4,7 @@ umount /etc/resolv.conf
 cp /etc/resolv.conf.bak /etc/resolv.conf
 rm /etc/resolv.conf.bak
 service expressvpn restart
+expect /expressvpn/logout.sh
 expect /expressvpn/activate.sh
 expressvpn connect $SERVER
 expressvpn protocol udp

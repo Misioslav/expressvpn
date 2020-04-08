@@ -6,6 +6,7 @@ ARG VERSION=expressvpn_2.4.4.19-1_amd64.deb
 
 COPY ./files/start.sh /expressvpn/start.sh
 COPY ./files/activate.sh /expressvpn/activate.sh
+COPY ./files/logout.sh /expressvpn/logout.sh
 COPY ./files/status.sh status.sh
 COPY ./files/cron /etc/cron.d/cron
 
