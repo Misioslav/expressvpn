@@ -2,7 +2,7 @@
 
 Container based on [polkaned/expressvpn](https://hub.docker.com/r/polkaned/expressvpn) version. This is my attempt mostly to learn more about docker.
 
-ExpressVPN version: `expressvpn_2.4.4.19-1_amd64.deb`
+ExpressVPN version: `expressvpn_2.4.5.2-1_amd64.deb`
 
 ## Download
 
