@@ -6,7 +6,7 @@ ExpressVPN version: `expressvpn_2.4.5.2-1_amd64.deb`
 
 Take `misioslav/expressvpn:cron` if you prefer a cron job (runs once every 5min) to check the status of your connection.
 
-Take `misioslav/expressvpn:latest` if you prefer to have a healthcheck performed every 30min.
+Take `misioslav/expressvpn:latest` if you prefer to have a healthcheck performed every 2min (you may need an access_token for this. See **HEALTHCHECK** section).
 
 ## Download
 
