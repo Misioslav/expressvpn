@@ -1,1 +1,0 @@
-*/5 * * * * expressvpn connect >> /var/log/cron.log 2>&1
