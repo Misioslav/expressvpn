@@ -21,9 +21,13 @@ ExpressVPN version: `expressvpn_2.4.5.2-1_amd64.deb`
       --tty=true \
       --name=expressvpn \
 	  --publish 80:80 \
+	  --env=DDNS=domain \ #optional
+	  --env=IP=yourIP \ #optional
+	  --env=BEARER=ipinfo_access_token \ #optional
       misioslav/expressvpn \
       /bin/bash
 ```
+
 
 Another container that will use ExpressVPN network:
 
@@ -54,6 +58,9 @@ Another container that will use ExpressVPN network:
     environment:
       - CODE=${CODE} # Activation Code from ExpressVPN https://www.expressvpn.com/support/troubleshooting/find-activation-code/
       - SERVER=SMART # By default container will connect to smart location, list of available locations you can find below
+	  - DDNS=domain # optional
+	  - IP=yourIP # optional - won't work if DDNS is setup
+	  - BEAERER=ipinfo_access_token # optional
     cap_add:
       - NET_ADMIN
     devices:
@@ -63,6 +70,11 @@ Another container that will use ExpressVPN network:
     command: /bin/bash
     privileged: true
 ```
+
+## HEALTHCHECK
+You can also add `--env=DDSN=domain` or `--env=IP=yourIP` to docker run command or in enviroment section of compose in order to perform healthcheck which will be checking if data from env variable DDNS or IP is different than ExpressVPN's IP.
+If you won't set any of them, by default healthcheck will return status `healthy`.
+Also, there is a possibility to add `--env=BEAERER=access_token` from [ipinfo.io](https://ipinfo.io/) if you have an account there (free plan gives you 50k requests per month).
 
 ## SERVER
 
@@ -227,10 +239,3 @@ eg    Egypt 	                  Egypt
 ke    Kenya 	                  Kenya
 dz    Algeria 	                  Algeria
 ```
-## Status
-
-You can check current connection status and IP assigned by ExpressVPN by running `/status.sh` in the container.
-
-## Additional
-
-There is a cron job that checks every 5 minutes if the connection to the server has been lost and if it was it will reconnect.
