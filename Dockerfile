@@ -15,6 +15,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get purge --autoremove -y wget \
 	&& rm -rf /var/log/*.log
 
-HEALTHCHECK --start-period=30s --timeout=10s --interval=30m --retries=3 CMD bash /expressvpn/healthcheck.sh
+HEALTHCHECK --start-period=30s --timeout=5s --interval=2m --retries=3 CMD bash /expressvpn/healthcheck.sh
 
 ENTRYPOINT ["/bin/bash", "/expressvpn/start.sh"]
