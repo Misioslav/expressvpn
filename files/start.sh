@@ -8,4 +8,7 @@ expect /expressvpn/activate.sh
 expressvpn connect $SERVER
 expressvpn protocol udp
 
+touch /var/log/temp.log
+tail -f /var/log/temp.log
+
 exec "$@"

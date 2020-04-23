@@ -4,6 +4,10 @@ Container based on [polkaned/expressvpn](https://hub.docker.com/r/polkaned/expre
 
 ExpressVPN version: `expressvpn_2.4.5.2-1_amd64.deb`
 
+Take `misioslav/expressvpn:cron` if you prefer a cron job (runs once every 5min) to check the status of your connection.
+
+Take `misioslav/expressvpn:latest` if you prefer to have a healthcheck performed every 30min.
+
 ## Download
 
 `docker pull misioslav/expressvpn`
@@ -72,6 +76,7 @@ Another container that will use ExpressVPN network:
 ```
 
 ## HEALTHCHECK
+Healthcheck is performed once every 30min.
 You can also add `--env=DDSN=domain` or `--env=IP=yourIP` to docker run command or in enviroment section of compose in order to perform healthcheck which will be checking if data from env variable DDNS or IP is different than ExpressVPN's IP.
 If you won't set any of them, by default healthcheck will return status `healthy`.
 Also, there is a possibility to add `--env=BEAERER=access_token` from [ipinfo.io](https://ipinfo.io/) if you have an account there (free plan gives you 50k requests per month).

@@ -7,7 +7,7 @@ fi
 
 if [[ ! -z $checkIP ]];
 then
-	expressvpnIP=$(curl -H "Authorization: Bearer $BEARER" 'ipinfo.io' | jq --raw-output '.ip')
+	expressvpnIP=$(curl -s -H "Authorization: Bearer $BEARER" 'ipinfo.io' | jq --raw-output '.ip')
 	if [[ $checkIP = $expressvpnIP ]];
 	then
 		exit 1
