@@ -2,7 +2,7 @@ FROM debian:buster-slim
 
 ENV CODE code
 ENV SERVER smart
-ARG VERSION=expressvpn_2.4.5.2-1_amd64.deb
+ARG VERSION=expressvpn_2.5.0.505-1_amd64.deb
 
 COPY files/ /expressvpn/
 
