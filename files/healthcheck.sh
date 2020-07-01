@@ -11,6 +11,7 @@ then
 	if [[ $checkIP = $expressvpnIP ]];
 	then
 		exit 1
+		expressvpn connect
 	else
 		exit 0
 	fi
