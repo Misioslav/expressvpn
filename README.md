@@ -2,7 +2,8 @@
 
 Container based on [polkaned/expressvpn](https://hub.docker.com/r/polkaned/expressvpn) version. This is my attempt mostly to learn more about docker.
 
-ExpressVPN version: `expressvpn_2.5.1.1-1_amd64.deb`
+ExpressVPN version: `expressvpn_2.5.2.3-1_amd64.deb`
+ExpressVPN:cron version is an older one and requires an update which will be done on a later date but this version should be stable.
 
 Take `misioslav/expressvpn:cron` if you prefer a cron job (runs once every 5min) to check the status of your connection.
 

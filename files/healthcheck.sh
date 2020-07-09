@@ -10,8 +10,8 @@ then
 	expressvpnIP=$(curl -s -H "Authorization: Bearer $BEARER" 'ipinfo.io' | jq --raw-output '.ip')
 	if [[ $checkIP = $expressvpnIP ]];
 	then
+		expressvpn connect $SERVER
 		exit 1
-		expressvpn connect
 	else
 		exit 0
 	fi
