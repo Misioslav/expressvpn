@@ -66,7 +66,7 @@ Another container that will use ExpressVPN network:
 	  - DDNS=domain # optional
 	  - IP=yourIP # optional - won't work if DDNS is setup
 	  - BEAERER=ipinfo_access_token # optional
-	  - HEALTHCHECK=HEALTCHECK.IO_ID # optional
+	  - HEALTHCHECK=HEALTCHECKS.IO_ID # optional
     cap_add:
       - NET_ADMIN
     devices:
@@ -82,6 +82,8 @@ Healthcheck is performed once every 30min.
 You can also add `--env=DDSN=domain` or `--env=IP=yourIP` to docker run command or in enviroment section of compose in order to perform healthcheck which will be checking if data from env variable DDNS or IP is different than ExpressVPN's IP.
 If you won't set any of them, by default healthcheck will return status `healthy`.
 Also, there is a possibility to add `--env=BEAERER=access_token` from [ipinfo.io](https://ipinfo.io/) if you have an account there (free plan gives you 50k requests per month).
+
+Additionally, healthchecks.io support has been added and you can add id of the healthchecks link to `HEALTHCHECK` variable in docker configs.
 
 ## SERVER
 
