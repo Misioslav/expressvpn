@@ -66,6 +66,7 @@ Another container that will use ExpressVPN network:
 	  - DDNS=domain # optional
 	  - IP=yourIP # optional - won't work if DDNS is setup
 	  - BEAERER=ipinfo_access_token # optional
+	  - HEALTHCHECK=HEALTCHECK.IO_ID # optional
     cap_add:
       - NET_ADMIN
     devices:
