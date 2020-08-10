@@ -10,11 +10,25 @@ then
 	expressvpnIP=$(curl -s -H "Authorization: Bearer $BEARER" 'ipinfo.io' | jq --raw-output '.ip')
 	if [[ $checkIP = $expressvpnIP ]];
 	then
-		exit 1
-		expressvpn disconnect
-		expressvpn connect $SERVER
+		if [[ ! -z $HEALTHCHECK ]];
+		then
+			curl https://hc-ping.com/$HEALTHCHECK/fail
+			expressvpn disconnect
+			expressvpn connect $SERVER
+			exit 1
+		else
+			expressvpn disconnect
+			expressvpn connect $SERVER
+			exit 1
+		fi
 	else
-		exit 0
+		if [[ ! -z $HEALTHCHECK ]];
+		then
+			curl https://hc-ping.com/$HEALTHCHECK
+			exit 0
+		else
+			exit 0
+		fi
 	fi
 else
 	exit 0
