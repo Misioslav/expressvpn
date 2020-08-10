@@ -2,6 +2,7 @@ FROM debian:buster-slim
 
 ENV CODE code
 ENV SERVER smart
+ENV HEALTHCHECK healthcheck
 ARG VERSION=expressvpn_2.6.0.32-1_amd64.deb
 
 COPY files/ /expressvpn/
