@@ -4,7 +4,7 @@ ENV CODE="code"
 ENV SERVER="smart"
 ENV HEALTHCHECK=""
 ENV BEARER=""
-ARG VERSION="expressvpn_3.0.2.12-1_amd64.deb"
+ARG VERSION="expressvpn_3.1.0.34-1_amd64.deb"
 
 COPY files/ /expressvpn/
 

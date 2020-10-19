@@ -2,7 +2,7 @@
 
 Container based on [polkaned/expressvpn](https://hub.docker.com/r/polkaned/expressvpn) version. This is my attempt mostly to learn more about docker.
 
-ExpressVPN version: `expressvpn_3.0.2.12-1_amd64.deb`
+ExpressVPN version: `expressvpn_3.1.0.34-1_amd64.deb`
 
 Take `misioslav/expressvpn:latest` if you prefer to have a healthcheck performed every 2min (you may need an access_token for this. See **HEALTHCHECK** section).
 
