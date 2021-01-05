@@ -1,16 +1,16 @@
-FROM debian:buster-slim
+FROM debian:bullseye-slim
 
 ENV CODE="code"
 ENV SERVER="smart"
 ENV HEALTHCHECK=""
 ENV BEARER=""
-ARG VERSION="expressvpn_3.4.0.62-1_amd64.deb"
+ARG VERSION="expressvpn_3.3.0.21-1_amd64.deb"
 
 COPY files/ /expressvpn/
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     expect curl ca-certificates iproute2 wget jq \
-    && wget -q https://download.expressvpn.xyz/clients/linux/${VERSION} -O /expressvpn/${VERSION} \
+    && wget -q https://www.expressvpn.works/clients/linux/${VERSION} -O /expressvpn/${VERSION} \
     && dpkg -i /expressvpn/${VERSION} \
     && rm -rf /expressvpn/*.deb \
     && rm -rf /var/lib/apt/lists/* \
