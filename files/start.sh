@@ -4,7 +4,6 @@ umount /etc/resolv.conf
 cp /etc/resolv.conf.bak /etc/resolv.conf
 rm /etc/resolv.conf.bak
 cp expressvpn/expressvpn.service /etc/init.d/expressvpn
-rm expressvpn/expressvpn.service
 service expressvpn restart
 expect /expressvpn/activate.sh
 expressvpn connect $SERVER
