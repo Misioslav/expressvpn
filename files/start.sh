@@ -7,7 +7,9 @@ sed -i 's/DAEMON_ARGS=.*/DAEMON_ARGS=""/' /etc/init.d/expressvpn
 service expressvpn restart
 expect /expressvpn/activate.sh
 expressvpn connect $SERVER
-expressvpn protocol udp
+expressvpn protocol lightway_udp
+expressvpn preference set lightway_cipher chacha20
+expressvpn autoconnect true
 
 touch /var/log/temp.log
 tail -f /var/log/temp.log
