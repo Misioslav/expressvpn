@@ -8,6 +8,7 @@ service expressvpn restart
 expect /expressvpn/activate.sh
 expressvpn preferences set preferred_protocol lightway_udp
 expressvpn preferences set lightway_cipher chacha20
+expressvpn set preferences network_lock on
 expressvpn preferences set auto_connect true
 expressvpn connect $SERVER
 
