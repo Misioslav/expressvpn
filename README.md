@@ -2,11 +2,19 @@
 
 Container based on [polkaned/expressvpn](https://hub.docker.com/r/polkaned/expressvpn) version. This is my attempt mostly to learn more about docker.
 
-ExpressVPN version: `expressvpn_3.8.0.4-1_amd64.deb`
+ExpressVPN version: `3.9.0.75`
 Currently set to use `lightway_udp` protocol with `chacha20` cipher.
 
 Experimental -> arm version available with tag `-armhf` from version `3.8.0.4`.
 I currently do not own Raspberry Pi of any kind to test this version, but feel free to let me know via GitHub if anything does not work properly.
+
+## Build
+
+AMD64
+`docker buildx build --build-arg NUM=EXPRESSVPN_VERSION --build-arg PLATFORM=amd64 --platform linux/amd64 -t REPOSITORY/APP:VERSION .`
+
+Raspberry Pi
+`docker buildx build --build-arg NUM=EXPRESSVPN_VERSION --build-arg PLATFORM=armhf --platform linux/arm/v7 -t REPOSITORY/APP:VERSION-armhf .`
 
 ## Download
 
