@@ -2,7 +2,7 @@
 
 Container based on [polkaned/expressvpn](https://hub.docker.com/r/polkaned/expressvpn) version. This is my attempt mostly to learn more about docker.
 
-ExpressVPN version: `3.9.0.75`
+ExpressVPN version: `3.10.0.9`
 Currently set to use `lightway_udp` protocol with `chacha20` cipher.
 
 Experimental -> arm version available with tag `-armhf` from version `3.8.0.4`.
