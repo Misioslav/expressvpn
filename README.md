@@ -5,7 +5,7 @@ Container based on [polkaned/expressvpn](https://hub.docker.com/r/polkaned/expre
 ExpressVPN version: `3.10.0.9`
 Currently set to use `lightway_udp` protocol with `chacha20` cipher.
 
-Experimental -> arm version available with tag `-armhf` from version `3.8.0.4`.
+Experimental -> arm version available with tag `armhf` from version `3.8.0.4`.
 I currently do not own Raspberry Pi of any kind to test this version, but feel free to let me know via GitHub if anything does not work properly.
 
 ## Build
