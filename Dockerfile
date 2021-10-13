@@ -11,7 +11,7 @@ ARG VERSION="expressvpn_${NUM}-1_${PLATFORM}.deb"
 COPY files/ /expressvpn/
 
 RUN apt update && apt install -y --no-install-recommends \
-    expect curl ca-certificates iproute2 wget jq \
+    expect curl ca-certificates iproute2 wget jq iptables \
     && wget -q https://www.expressvpn.works/clients/linux/${VERSION} -O /expressvpn/${VERSION} \
     && dpkg -i /expressvpn/${VERSION} \
     && rm -rf /expressvpn/*.deb \
