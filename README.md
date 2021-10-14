@@ -32,10 +32,10 @@ Raspberry Pi
     --detach=true \
     --tty=true \
     --name=expressvpn \
-	  --publish 80:80 \
-	  --env=DDNS=domain \ #optional
-	  --env=IP=yourIP \ #optional
-	  --env=BEARER=ipinfo_access_token \ #optional
+    --publish 80:80 \
+    --env=DDNS=domain \ #optional
+    --env=IP=yourIP \ #optional
+    --env=BEARER=ipinfo_access_token \ #optional
     --env=NETWORK=NETWORK \ #optional set to off by default
     misioslav/expressvpn \
     /bin/bash
@@ -47,7 +47,7 @@ Another container that will use ExpressVPN network:
 ```
     docker run \
     --name=example \
-	  --net=container:expressvpn \
+    --net=container:expressvpn \
     maintainer/example:version
 ```
 
@@ -68,12 +68,12 @@ Another container that will use ExpressVPN network:
     ports: # ports from which container that uses expressvpn connection will be available in local network
       - 80:80 # example
     environment:
-	    - CODE=${CODE} # Activation Code from ExpressVPN https://www.expressvpn.com/support/troubleshooting/find-activation-code/
-	    - SERVER=SMART # By default container will connect to smart location, list of available locations you can find below
-	    - DDNS=yourDDNSdomain # optional
-	    - IP=yourStaticIP # optional - won't work if DDNS is setup
-	    - BEAERER=ipinfo_access_token # optional can be taken from ipinfo.io
-    	- HEALTHCHECK=HEALTCHECKS.IO_ID # optional can be taken from healthchecks.io
+      - CODE=${CODE} # Activation Code from ExpressVPN https://www.expressvpn.com/support/troubleshooting/find-activation-code/
+      - SERVER=SMART # By default container will connect to smart location, list of available locations you can find below
+      - DDNS=yourDDNSdomain # optional
+      - IP=yourStaticIP # optional - won't work if DDNS is setup
+      - BEAERER=ipinfo_access_token # optional can be taken from ipinfo.io
+      - HEALTHCHECK=HEALTCHECKS.IO_ID # optional can be taken from healthchecks.io
       - NETWORK=off/on #optional and set to off by default
     cap_add:
       - NET_ADMIN
