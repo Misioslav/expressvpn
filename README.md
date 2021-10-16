@@ -36,7 +36,7 @@ Raspberry Pi
     --env=DDNS=domain \ #optional
     --env=IP=yourIP \ #optional
     --env=BEARER=ipinfo_access_token \ #optional
-    --env=NETWORK=NETWORK \ #optional set to off by default
+    --env=NETWORK=NETWORK \ #optional set to on by default
     misioslav/expressvpn \
     /bin/bash
 ```
@@ -74,7 +74,7 @@ Another container that will use ExpressVPN network:
       - IP=yourStaticIP # optional - won't work if DDNS is setup
       - BEAERER=ipinfo_access_token # optional can be taken from ipinfo.io
       - HEALTHCHECK=HEALTCHECKS.IO_ID # optional can be taken from healthchecks.io
-      - NETWORK=off/on #optional and set to off by default
+      - NETWORK=off/on #optional and set to on by default
     cap_add:
       - NET_ADMIN
     devices:
