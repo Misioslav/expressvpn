@@ -8,6 +8,11 @@ Currently set to use `lightway_udp` protocol with `chacha20` cipher.
 Experimental -> arm version available with tag `armhf` from version `3.8.0.4`.
 I currently do not own Raspberry Pi of any kind to test this version, but feel free to let me know via GitHub if anything does not work properly.
 
+## NETWORK_LOCK
+
+Currently, `network_lock` is turned on by default but in case of any issues you can turn it off by setting env variable `NETWORK` to `off`.
+In most cases when `network_lock` cannot be used it is caused by old kernel version. Apparently, the minimum kernel version where `network_lock` is supported is **4.9**.
+
 ## Build
 
 AMD64
@@ -36,7 +41,7 @@ Raspberry Pi
     --env=DDNS=domain \ #optional
     --env=IP=yourIP \ #optional
     --env=BEARER=ipinfo_access_token \ #optional
-    --env=NETWORK=NETWORK \ #optional set to on by default
+    --env=NETWORK=on/off \ #optional set to on by default
     misioslav/expressvpn \
     /bin/bash
 ```
