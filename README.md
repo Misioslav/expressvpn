@@ -40,6 +40,8 @@ In most cases when `network_lock` cannot be used it is caused by old kernel vers
     --tty=true \
     --name=expressvpn \
     --publish 80:80 \
+    --env=CODE=express_vpn_token \
+    --env=SERVER=SMART \
     --env=DDNS=domain \ #optional
     --env=IP=yourIP \ #optional
     --env=BEARER=ipinfo_access_token \ #optional
