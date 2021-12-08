@@ -15,6 +15,7 @@ In most cases when `network_lock` cannot be used it is caused by old kernel vers
 ## WHITELIST_DNS
 
 As of `3.14.0.4` new env is available. It can be used like in the examples below and it is a comma seperated list of dns servers you wish to use and whitelist via iptables. Leave empty for default behavior.
+Added by [phynias](https://github.com/phynias), thank you!
 
 ## HEALTHCHECK
 Healthcheck is performed once every 2min.
