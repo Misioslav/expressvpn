@@ -31,6 +31,7 @@ In most cases when `network_lock` cannot be used it is caused by old kernel vers
 
 ```
     docker run \
+    --env=WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8 \
     --env=CODE=CODE \
     --env=SERVER=SMART \
     --cap-add=NET_ADMIN \
@@ -75,6 +76,7 @@ Another container that will use ExpressVPN network:
     ports: # ports from which container that uses expressvpn connection will be available in local network
       - 80:80 # example
     environment:
+      - WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8  # Comma seperated list of dns servers you wish to use and whitelist via iptables
       - CODE=${CODE} # Activation Code from ExpressVPN https://www.expressvpn.com/support/troubleshooting/find-activation-code/
       - SERVER=SMART # By default container will connect to smart location, list of available locations you can find below
       - DDNS=yourDDNSdomain # optional
