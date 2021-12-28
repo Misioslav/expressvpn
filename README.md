@@ -42,8 +42,8 @@ Additionally, healthchecks.io support has been added and you can add the id of t
 ```
     docker run \
     --env=WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8 \
-    --env=CODE=CODE \
-    --env=SERVER=SMART \
+    --env=CODE=code \
+    --env=SERVER=smart \
     --cap-add=NET_ADMIN \
     --device=/dev/net/tun \
     --privileged \
@@ -52,8 +52,8 @@ Additionally, healthchecks.io support has been added and you can add the id of t
     --name=expressvpn \
     --publish 80:80 \
     --env=DDNS=domain \ #optional
-    --env=IP=yourIP \ #optional
-    --env=BEARER=ipinfo_access_token \ #optional
+    --env=IP=yourIp \ #optional
+    --env=BEARER=ipInfoAccessToken \ #optional
     --env=NETWORK=on/off \ #optional set to on by default
     misioslav/expressvpn \
     /bin/bash
@@ -87,12 +87,12 @@ Another container that will use ExpressVPN network:
       - 80:80 # example
     environment:
       - WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8  # Comma seperated list of dns servers you wish to use and whitelist via iptables
-      - CODE=${CODE} # Activation Code from ExpressVPN https://www.expressvpn.com/support/troubleshooting/find-activation-code/
-      - SERVER=SMART # By default container will connect to smart location, list of available locations you can find below
-      - DDNS=yourDDNSdomain # optional
-      - IP=yourStaticIP # optional - won't work if DDNS is setup
-      - BEAERER=ipinfo_access_token # optional can be taken from ipinfo.io
-      - HEALTHCHECK=HEALTCHECKS.IO_ID # optional can be taken from healthchecks.io
+      - CODE=code # Activation Code from ExpressVPN https://www.expressvpn.com/support/troubleshooting/find-activation-code/
+      - SERVER=smart # By default container will connect to smart location, list of available locations you can find below
+      - DDNS=yourDdnsDomain # optional
+      - IP=yourStaticIp # optional - won't work if DDNS is setup
+      - BEAERER=ipInfoAccessToken # optional can be taken from ipinfo.io
+      - HEALTHCHECK=healthchecks.ioId # optional can be taken from healthchecks.io
       - NETWORK=off/on #optional and set to on by default
     cap_add:
       - NET_ADMIN
