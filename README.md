@@ -8,14 +8,14 @@ You can change it by env variables `protocol` and `cipher`.
 
 Available protocols:
 - `lightway_tcp`
-- `lightway_udp` - defualt value
+- `lightway_udp` - default value
 - `tcp`
 - `udp`
 - `auto`
 
 Cipher available **only** with lightway:
 - `aes`
-- `chacha20` - defualt value
+- `chacha20` - default value
 - `auto`
 
 ## NETWORK_LOCK
