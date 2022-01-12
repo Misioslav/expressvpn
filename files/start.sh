@@ -6,8 +6,9 @@ rm /etc/resolv.conf.bak
 sed -i 's/DAEMON_ARGS=.*/DAEMON_ARGS=""/' /etc/init.d/expressvpn
 service expressvpn restart
 expect /expressvpn/activate.sh
-expressvpn preferences set preferred_protocol lightway_udp
-expressvpn preferences set lightway_cipher chacha20
+expressvpn preferences set preferred_protocol $PROTOCOL
+expressvpn preferences set lightway_cipher $CIPHER
+expressvpn preferences set send_diagnostics false
 bash /expressvpn/uname.sh
 expressvpn preferences set auto_connect true
 expressvpn connect $SERVER

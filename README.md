@@ -2,19 +2,32 @@
 
 Container-based on [polkaned/expressvpn](https://hub.docker.com/r/polkaned/expressvpn) version. This is my attempt mostly to learn more about docker.
 
-ExpressVPN version: `3.14.0.4`
-Currently set to use `lightway_udp` protocol with `chacha20` cipher.
+## PROTOCOL AND CIPHER
+
+You can change it by env variables `protocol` and `cipher`.
+
+Available protocols:
+- `lightway_tcp`
+- `lightway_udp` - defualt value
+- `tcp`
+- `udp`
+- `auto`
+
+Cipher available **only** with lightway:
+- `aes`
+- `chacha20` - defualt value
+- `auto`
 
 ## NETWORK_LOCK
 
 Currently, `network_lock` is turned on by default but in case of any issues you can turn it off by setting env variable `NETWORK` to `off`.
 In most cases when `network_lock` cannot be used it is caused by old kernel version. Apparently, the minimum kernel version where `network_lock` is supported is **4.9**.
 
-*As of version 3.13.0.8 and higher a script is included that checks if the host's kernel version meets minimum requirements to allow `network_lock`. If not and the user sets or leaves the default setting `network_lock` to `on`, then `network_lock` will be disabled to allow expressvpn to run.*
+*A script is included that checks if the host's kernel version meets minimum requirements to allow `network_lock`. If not and the user sets or leaves the default setting `network_lock` to `on`, then `network_lock` will be disabled to allow expressvpn to run.*
 
 ## WHITELIST_DNS
 
-As of `3.14.0.4` new env is available. It can be used like in the examples below and it is a comma seperated list of dns servers you wish to use and whitelist via iptables. Leave empty for default behavior.
+New env is available. It can be used like in the examples below and it is a comma seperated list of dns servers you wish to use and whitelist via iptables. Leave empty for default behavior.
 Added by [phynias](https://github.com/phynias), thank you!
 
 ## HEALTHCHECK
@@ -55,6 +68,8 @@ Additionally, healthchecks.io support has been added and you can add the id of t
     --env=IP=yourIP \ #optional
     --env=BEARER=ipinfo_access_token \ #optional
     --env=NETWORK=on/off \ #optional set to on by default
+    --env=PROTOCOL=lightway_udp \ #optional set default to lightway_udp see protocol and cipher section for more information
+    --env=CIPHER=chacha20 \ #optional set default to chacha20 see protocol and cipher section for more information
     misioslav/expressvpn \
     /bin/bash
 ```
@@ -94,6 +109,8 @@ Another container that will use ExpressVPN network:
       - BEAERER=ipinfo_access_token # optional can be taken from ipinfo.io
       - HEALTHCHECK=HEALTCHECKS.IO_ID # optional can be taken from healthchecks.io
       - NETWORK=off/on #optional and set to on by default
+      - PROTOCOL=lightway_udp \ #optional set default to lightway_udp see protocol and cipher section for more information
+      - CIPHER=chacha20 \ #optional set default to chacha20 see protocol and cipher section for more information
     cap_add:
       - NET_ADMIN
     devices:
@@ -106,156 +123,7 @@ Another container that will use ExpressVPN network:
 
 ## SERVERS AVAILABLE
 
-You can choose to which location ExpressVPN should connect to by setting up `SERVER=ALIAS/COUNTRY/LOCATION/SMART`
-Check the table below for the full list of available servers to connect to.
-You can also check available locations from inside the container by running `expressvpn list all` command.
+You can choose to which location ExpressVPN should connect to by setting up `SERVER=ALIAS`, `SERVER=COUNTRY`, `SERVER=LOCATION` or `SERVER=SMART`
 
-```
-ALIAS COUNTRY                     LOCATION                       
------ ---------------             ------------------------------
-smart Smart Location              Poland                        
-in    India (IN)                  India (via UK)                
-inmu1                             India - Mumbai - 1             
-inch                              India - Chennai                
-pl    Poland (PL)                 Poland                        
-cz    Czech Republic (CZ)         Czech Republic                
-usny  United States (US)          USA - New York                
-uswd                              USA - Washington DC           
-usla2                             USA - Los Angeles - 2         
-usnj3                             USA - New Jersey - 3          
-ussf                              USA - San Francisco            
-usch                              USA - Chicago                  
-usda                              USA - Dallas                   
-usmi                              USA - Miami                    
-usla3                             USA - Los Angeles - 3          
-usnj1                             USA - New Jersey - 1           
-usse                              USA - Seattle                  
-usmi2                             USA - Miami - 2                
-usde                              USA - Denver                   
-ussl1                             USA - Salt Lake City           
-usta1                             USA - Tampa - 1                
-usla1                             USA - Los Angeles - 1          
-usnj2                             USA - New Jersey - 2           
-usda2                             USA - Dallas - 2               
-usla                              USA - Los Angeles              
-usat                              USA - Atlanta                  
-usla5                             USA - Los Angeles - 5          
-ussm                              USA - Santa Monica             
-sgju  Singapore (SG)              Singapore - Jurong             
-sgcb                              Singapore - CBD                
-sgmb                              Singapore - Marina Bay         
-frst  France (FR)                 France - Strasbourg           
-frpa2                             France - Paris - 2             
-fral                              France - Alsace                
-hk2   Hong Kong (HK)              Hong Kong - 2                  
-hk1                               Hong Kong - 1                  
-ukdo  United Kingdom (GB)         UK - Docklands                
-ukel                              UK - East London              
-uklo                              UK - London                    
-ukwe                              UK - Wembley                   
-jpto  Japan (JP)                  Japan - Tokyo                  
-jpyo                              Japan - Yokohama               
-jpto2                             Japan - Tokyo - 2              
-se    Sweden (SE)                 Sweden                        
-se2                               Sweden - 2                     
-itco  Italy (IT)                  Italy - Cosenza               
-aume  Australia (AU)              Australia - Melbourne          
-ausy                              Australia - Sydney             
-aupe                              Australia - Perth              
-aubr                              Australia - Brisbane           
-ausy2                             Australia - Sydney - 2         
-denu  Germany (DE)                Germany - Nuremberg           
-defr1                             Germany - Frankfurt - 1        
-defr3                             Germany - Frankfurt - 3        
-nlam2 Netherlands (NL)            Netherlands - Amsterdam - 2   
-nlth                              Netherlands - The Hague       
-nlam                              Netherlands - Amsterdam        
-nlro                              Netherlands - Rotterdam        
-kr2   South Korea (KR)            South Korea - 2                
-ph    Philippines (PH)            Philippines                    
-my    Malaysia (MY)               Malaysia                       
-lk    Sri Lanka (LK)              Sri Lanka                      
-pk    Pakistan (PK)               Pakistan                       
-kz    Kazakhstan (KZ)             Kazakhstan                     
-th    Thailand (TH)               Thailand                       
-id    Indonesia (ID)              Indonesia                      
-nz    New Zealand (NZ)            New Zealand                    
-tw3   Taiwan (TW)                 Taiwan - 3                     
-vn    Vietnam (VN)                Vietnam                        
-mo    Macau (MO)                  Macau                          
-kh    Cambodia (KH)               Cambodia                       
-mn    Mongolia (MN)               Mongolia                       
-la    Laos (LA)                   Laos                           
-mm    Myanmar (MM)                Myanmar                        
-np    Nepal (NP)                  Nepal                          
-kg    Kyrgyzstan (KG)             Kyrgyzstan                     
-uz    Uzbekistan (UZ)             Uzbekistan                     
-bd    Bangladesh (BD)             Bangladesh                     
-bt    Bhutan (BT)                 Bhutan                         
-bnbr  Brunei Darussalam (BN)      Brunei                         
-cato  Canada (CA)                 Canada - Toronto               
-cava                              Canada - Vancouver             
-cato2                             Canada - Toronto - 2           
-camo                              Canada - Montreal              
-mx    Mexico (MX)                 Mexico                         
-br2   Brazil (BR)                 Brazil - 2                     
-br                                Brazil                         
-pa    Panama (PA)                 Panama                         
-cl    Chile (CL)                  Chile                          
-ar    Argentina (AR)              Argentina                      
-bo    Bolivia (BO)                Bolivia                        
-cr    Costa Rica (CR)             Costa Rica                     
-co    Colombia (CO)               Colombia                       
-ve    Venezuela (VE)              Venezuela                      
-ec    Ecuador (EC)                Ecuador                        
-gt    Guatemala (GT)              Guatemala                      
-pe    Peru (PE)                   Peru                           
-uy    Uruguay (UY)                Uruguay                        
-bs    Bahamas (BS)                Bahamas                        
-ch    Switzerland (CH)            Switzerland                    
-ro    Romania (RO)                Romania                        
-im    Isle of Man (IM)            Isle of Man                    
-esma  Spain (ES)                  Spain - Madrid                 
-esba                              Spain - Barcelona              
-esba2                             Spain - Barcelona - 2          
-tr    Turkey (TR)                 Turkey                         
-ie    Ireland (IE)                Ireland                        
-is    Iceland (IS)                Iceland                        
-no    Norway (NO)                 Norway                         
-dk    Denmark (DK)                Denmark                        
-be    Belgium (BE)                Belgium                        
-fi    Finland (FI)                Finland                        
-gr    Greece (GR)                 Greece                         
-pt    Portugal (PT)               Portugal                       
-at    Austria (AT)                Austria                        
-am    Armenia (AM)                Armenia                        
-lt    Lithuania (LT)              Lithuania                      
-lv    Latvia (LV)                 Latvia                         
-ee    Estonia (EE)                Estonia                        
-ad    Andorra (AD)                Andorra                        
-me    Montenegro (ME)             Montenegro                     
-ba    Bosnia and Herzegovina (BA) Bosnia and Herzegovina         
-lu    Luxembourg (LU)             Luxembourg                     
-hu    Hungary (HU)                Hungary                        
-bg    Bulgaria (BG)               Bulgaria                       
-by    Belarus (BY)                Belarus                        
-ua    Ukraine (UA)                Ukraine                        
-mt    Malta (MT)                  Malta                          
-li    Liechtenstein (LI)          Liechtenstein                  
-cy    Cyprus (CY)                 Cyprus                         
-al    Albania (AL)                Albania                        
-hr    Croatia (HR)                Croatia                        
-si    Slovenia (SI)               Slovenia                       
-sk    Slovakia (SK)               Slovakia                       
-mc    Monaco (MC)                 Monaco                         
-je    Jersey (JE)                 Jersey                         
-mk    North Macedonia (MK)        North Macedonia                
-md    Moldova (MD)                Moldova                        
-rs    Serbia (RS)                 Serbia                         
-ge    Georgia (GE)                Georgia                        
-za    South Africa (ZA)           South Africa                   
-il    Israel (IL)                 Israel                         
-eg    Egypt (EG)                  Egypt                          
-ke    Kenya (KE)                  Kenya                          
-dz    Algeria (DZ)                Algeria  
-```
+You can check available locations from inside the container by running `expressvpn list all` command.
+

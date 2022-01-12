@@ -6,7 +6,7 @@ expect {
 		send "N\r"
 	}
 	"Enter activation code:" {
-		send "$env(CODE)\r"
+		send "${CODE}\r"
 	}
 	"Help improve ExpressVPN: Share crash reports, speed tests, usability diagnostics, and whether VPN connection attempts succeed. These reports never contain personally identifiable information. (Y/n)" {
 		send "n\r"
