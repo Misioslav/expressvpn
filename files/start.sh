@@ -9,6 +9,7 @@ expect /expressvpn/activate.sh
 expressvpn preferences set preferred_protocol $PROTOCOL
 expressvpn preferences set lightway_cipher $CIPHER
 expressvpn preferences set send_diagnostics false
+expressvpn preferences set block_trackers true
 bash /expressvpn/uname.sh
 expressvpn preferences set auto_connect true
 expressvpn connect $SERVER
