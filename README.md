@@ -41,10 +41,10 @@ Additionally, healthchecks.io support has been added and you can add the id of t
 ## Build
 
 **AMD64**
-`docker buildx build --build-arg NUM=EXPRESSVPN_VERSION --build-arg PLATFORM=amd64 --platform linux/amd64 -t REPOSITORY/APP:VERSION .`
+`docker buildx build --build-arg NUM=<EXPRESSVPN_VERSION> --build-arg DISTRIBUTION=<DEBIAN_DISTRIBUTION> --build-arg PLATFORM=amd64 --platform linux/amd64 -t REPOSITORY/APP:VERSION .`
 
-**Raspberry Pi**
-`docker buildx build --build-arg NUM=EXPRESSVPN_VERSION --build-arg PLATFORM=armhf --platform linux/arm/v7 -t REPOSITORY/APP:VERSION-armhf .`
+**ARMv7 (Raspberry Pi)**
+`docker buildx build --build-arg NUM=<EXPRESSVPN_VERSION> --build-arg DISTRIBUTION=<DEBIAN_DISTRIBUTION> --build-arg PLATFORM=armhf --platform linux/arm/v7 -t REPOSITORY/APP:VERSION-armhf .`
 
 ## Download
 
