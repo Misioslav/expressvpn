@@ -2,6 +2,12 @@
 
 Container-based on [polkaned/expressvpn](https://hub.docker.com/r/polkaned/expressvpn) version. This is my attempt mostly to learn more about docker.
 
+## TAGS
+
+Latest tag is based on `debian bullseye`.
+It is possible to use `debian bookworm` base with `-bookworm` tags.
+Numbers in the tag corresponds to ExpressVPN version.
+
 ## PROTOCOL AND CIPHER
 
 You can change it by env variables `protocol` and `cipher`.
