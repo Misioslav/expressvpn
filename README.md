@@ -2,6 +2,12 @@
 
 Container-based on [polkaned/expressvpn](https://hub.docker.com/r/polkaned/expressvpn) version. This is my attempt mostly to learn more about docker.
 
+## TAGS
+
+Latest tag is based on `debian bullseye`.
+It is possible to use `debian bookworm` base with `-bookworm` tags.
+Numbers in the tag corresponds to ExpressVPN version.
+
 ## PROTOCOL AND CIPHER
 
 You can change it by env variables `protocol` and `cipher`.
@@ -41,10 +47,10 @@ Additionally, healthchecks.io support has been added and you can add the id of t
 ## Build
 
 **AMD64**
-`docker buildx build --build-arg NUM=EXPRESSVPN_VERSION --build-arg PLATFORM=amd64 --platform linux/amd64 -t REPOSITORY/APP:VERSION .`
+`docker buildx build --build-arg NUM=<EXPRESSVPN_VERSION> --build-arg DISTRIBUTION=<DEBIAN_DISTRIBUTION> --build-arg PLATFORM=amd64 --platform linux/amd64 -t REPOSITORY/APP:VERSION .`
 
-**Raspberry Pi**
-`docker buildx build --build-arg NUM=EXPRESSVPN_VERSION --build-arg PLATFORM=armhf --platform linux/arm/v7 -t REPOSITORY/APP:VERSION-armhf .`
+**ARMv7 (Raspberry Pi)**
+`docker buildx build --build-arg NUM=<EXPRESSVPN_VERSION> --build-arg DISTRIBUTION=<DEBIAN_DISTRIBUTION> --build-arg PLATFORM=armhf --platform linux/arm/v7 -t REPOSITORY/APP:VERSION-armhf .`
 
 ## Download
 

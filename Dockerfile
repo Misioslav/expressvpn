@@ -1,4 +1,6 @@
-FROM debian:bookworm-slim
+ARG DISTRIBUTION
+
+FROM debian:${DISTRIBUTION}-slim
 
 ENV CODE="code"
 ENV SERVER="smart"
