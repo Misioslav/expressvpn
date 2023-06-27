@@ -1,4 +1,4 @@
-#!/bin/expect
+#!/usr/bin/expect
 set timeout 10
 spawn expressvpn activate
 expect {
