@@ -1,17 +1,23 @@
 #!/usr/bin/bash
 
-kernel_version=$(uname -r)
-major_version="${kernel_version%%.*}"
-minor_version="${kernel_version#*.}"
-minor_version="${minor_version%%.*}"
+kv=$(uname -r | awk -F '.' '{
+        if ($1 < 4) { print 1; }
+        else if ($1 == 4) {
+            if ($2 <= 9) { print 1; }
+            else { print 0; }
+        }
+        else { print 0; }
+    }')
 
-if [[ $NETWORK = "on" ]]; then
-    if (( major_version < 4 || (major_version == 4 && minor_version <= 9) )); then
-        expressvpn preferences set network_lock "$NETWORK"
-    else
-        echo "Kernel version is lower than the minimum required version (4.9). network_lock will be disabled."
-        expressvpn preferences set network_lock off
-    fi
+if [[ $NETWORK = "on" ]];
+then
+	if [[ $kv = 0 ]];
+	then
+		expressvpn preferences set network_lock $NETWORK
+	else
+		echo "Kernel Version is lower than minimum version of required kernel (4.9), network_lock will be disabled."
+		expressvpn preferences set network_lock off
+	fi
 else
-    expressvpn preferences set network_lock "$NETWORK"
+	expressvpn preferences set network_lock $NETWORK
 fi
