@@ -33,7 +33,7 @@ In most cases when `network_lock` cannot be used it is caused by old kernel vers
 
 ## WHITELIST_DNS
 
-New env is available. It can be used like in the examples below and it is a comma seperated list of dns servers you wish to use and whitelist via iptables. Leave empty for default behavior.
+New env is available. It can be used like in the examples below and it is a comma seperated list of dns servers you wish to use and whitelist via iptables. Don't use it or leave empty for default behavior.
 Added by [phynias](https://github.com/phynias), thank you!
 
 ## HEALTHCHECK
@@ -60,7 +60,7 @@ Additionally, healthchecks.io support has been added and you can add the id of t
 
 ```
     docker run \
-    --env=WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8 \
+    --env=WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8 \ #optional
     --env=CODE=code \
     --env=SERVER=smart \
     --cap-add=NET_ADMIN \
@@ -107,7 +107,7 @@ Another container that will use ExpressVPN network:
     ports: # ports from which container that uses expressvpn connection will be available in local network
       - 80:80 # example
     environment:
-      - WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8  # Comma seperated list of dns servers you wish to use and whitelist via iptables
+      - WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8  # optional - Comma seperated list of dns servers you wish to use and whitelist via iptables
       - CODE=code # Activation Code from ExpressVPN https://www.expressvpn.com/support/troubleshooting/find-activation-code/
       - SERVER=smart # By default container will connect to smart location, list of available locations you can find below
       - DDNS=yourDdnsDomain # optional
