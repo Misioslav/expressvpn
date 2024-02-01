@@ -44,11 +44,12 @@ Added by [phynias](https://github.com/phynias), thank you!
 
 ## HEALTHCHECK
 Healthcheck is performed once every 2min.
-You can also add `--env=DDSN=domain` or `--env=IP=yourIP` to docker run command or in the environment section of compose in order to perform healthcheck which will be checking if data from env variable DDNS or IP is different than ExpressVPN's IP.
+You can also add `--env=DDNS=domain` or `--env=IP=yourIP` to docker run command or in the environment section of compose in order to perform healthcheck which will be checking if data from env variable DDNS or IP is different than ExpressVPN's IP.
 If you won't set any of them, by default healthcheck will return status `healthy`.
 Also, there is a possibility to add `--env=BEAERER=access_token` from [ipinfo.io](https://ipinfo.io/) if you have an account there (free plan gives you 50k requests per month).
 
 Additionally, healthchecks.io support has been added and you can add the id of the healthchecks link to the `HEALTHCHECK` variable in docker configs.
+DDNS or IP must be set for ipinfo.io and healthcheck.io to work. 
 
 ## Build
 
@@ -99,12 +100,15 @@ Another container that will use ExpressVPN network:
 ## Docker Compose
 
 ```
+services:
+
   example:
     image: maintainer/example:version
-	container_name: example
-	network_mode: service:expressvpn
-	depends_on:
-	  - expressvpn
+    container_name: example
+    network_mode: service:expressvpn
+    depends_on:
+      expressvpn:
+        condition: service_healthy # This forces the dependent container to wait for the expressvpn container to report healthy. It helps prevent traffic before expressvpn is connected.
 
   expressvpn:
     image: misioslav/expressvpn:latest
@@ -113,16 +117,18 @@ Another container that will use ExpressVPN network:
     ports: # ports from which container that uses expressvpn connection will be available in local network
       - 80:80 # example
     environment:
-      - WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8  # optional - Comma seperated list of dns servers you wish to use and whitelist via iptables
+      # - WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8  # optional - Comma seperated list of dns servers you wish to use and whitelist via iptables. DO NOT set this unless you know what you are doing. Whitelisting could cause traffic to circumvent the VPN and cause a DNS leak.
       - CODE=code # Activation Code from ExpressVPN https://www.expressvpn.com/support/troubleshooting/find-activation-code/
       - SERVER=smart # By default container will connect to smart location, list of available locations you can find below
       - DDNS=yourDdnsDomain # optional
       - IP=yourStaticIp # optional - won't work if DDNS is setup
+      #### These will only work if DDNS or IP are set. ####
       - BEAERER=ipInfoAccessToken # optional can be taken from ipinfo.io
       - HEALTHCHECK=healthchecks.ioId # optional can be taken from healthchecks.io
-      - NETWORK=off/on #optional and set to on by default
-      - PROTOCOL=lightway_udp \ #optional set default to lightway_udp see protocol and cipher section for more information
-      - CIPHER=chacha20 \ #optional set default to chacha20 see protocol and cipher section for more information
+      #####################################################
+      - NETWORK=off/on #optional and set to on by default (This is the killswitch)
+      - PROTOCOL=lightway_udp #optional set default to lightway_udp see protocol and cipher section for more information
+      - CIPHER=chacha20 #optional set default to chacha20 see protocol and cipher section for more information
     cap_add:
       - NET_ADMIN
     devices:
