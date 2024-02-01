@@ -131,11 +131,6 @@ services:
     tty: true
     command: /bin/bash
     privileged: true
-
-networks:
-  expressvpn:
-    driver: bridge
-    name: expressvpn
 ```
 
 ## SERVERS AVAILABLE
