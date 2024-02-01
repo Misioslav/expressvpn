@@ -31,6 +31,12 @@ In most cases when `network_lock` cannot be used it is caused by old kernel vers
 
 *A script is included that checks if the host's kernel version meets minimum requirements to allow `network_lock`. If not and the user sets or leaves the default setting `network_lock` to `on`, then `network_lock` will be disabled to allow expressvpn to run.*
 
+## AUTO_UPDATE
+
+It is not possible to set env variable AUTO_UPDATE with value "on" for the container. It will cause the container to try to update upon container restart. If not set or set to a different value than "on" container will not try to update expressvpn automatically.
+
+**Available from 3.61.0.12 tag.**
+
 ## WHITELIST_DNS
 
 New env is available. It can be used like in the examples below and it is a comma seperated list of dns servers you wish to use and whitelist via iptables. Don't use it or leave empty for default behavior.

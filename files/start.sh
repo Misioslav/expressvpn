@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [[ $AUTO_UPDATE = "on" ]]; then
+   DEBIAN_FRONTEND=noninteractive apt update && apt -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" install -y --only-upgrade expressvpn --no-install-recommends apt-utils
+    rm -rf /var/lib/apt/lists/* && rm -rf /var/log/*.log
+fi
+
 if [[ -f "/etc/resolv.conf" ]]; then
     cp /etc/resolv.conf /etc/resolv.conf.bak
     umount /etc/resolv.conf >/dev/null
