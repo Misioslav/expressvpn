@@ -16,12 +16,12 @@ ARG TARGETPLATFORM
 
 COPY files/ /expressvpn/
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt update && apt install -y --no-install-recommends \
     expect curl ca-certificates iproute2 wget jq iptables iputils-ping
 
 RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
     dpkg --add-architecture armhf \
-    && apt-get update && apt-get install -y --no-install-recommends \
+    && apt update && apt install -y --no-install-recommends \
     libc6:armhf libstdc++6:armhf \
     && cd /lib && ln -s arm-linux-gnueabihf/ld-2.23.so ld-linux.so.3; \
     fi

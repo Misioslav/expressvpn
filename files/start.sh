@@ -1,13 +1,12 @@
 #!/bin/bash
 
 if [[ $AUTO_UPDATE = "on" ]]; then
-   DEBIAN_FRONTEND=noninteractive apt update && apt -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" install -y --only-upgrade expressvpn --no-install-recommends apt-utils
-    rm -rf /var/lib/apt/lists/* && rm -rf /var/log/*.log
+    DEBIAN_FRONTEND=noninteractive apt update && apt -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" install -y --only-upgrade expressvpn --no-install-recommends && apt autoclean && apt clean && apt autoremove && rm -rf /var/lib/apt/lists/* && rm -rf /var/log/*.log
 fi
 
 if [[ -f "/etc/resolv.conf" ]]; then
     cp /etc/resolv.conf /etc/resolv.conf.bak
-    umount /etc/resolv.conf >/dev/null
+    umount /etc/resolv.conf &>/dev/null
     cp /etc/resolv.conf.bak /etc/resolv.conf
     rm /etc/resolv.conf.bak
 fi
@@ -21,7 +20,8 @@ if [[ $output == *"failed!"* ]]; then
     exit 1
 fi
 
-output=$(expect /expressvpn/activate.sh 2>&1)
+echo "activate is running"
+output=$(expect -f /expressvpn/activate.exp "$CODE")
 if [[ $output == *"Please activate your account."* ]]; then
     echo "Activation failed!"
     bash /expressvpn/start.sh

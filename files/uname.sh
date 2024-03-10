@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 kv=$(uname -r | awk -F '.' '{
         if ($1 < 4) { print 1; }
