@@ -20,7 +20,6 @@ if [[ $output == *"failed!"* ]]; then
     exit 1
 fi
 
-echo "activate is running"
 output=$(expect -f /expressvpn/activate.exp "$CODE")
 if [[ $output == *"Please activate your account."* ]]; then
     echo "Activation failed!"
