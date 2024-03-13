@@ -33,7 +33,7 @@ In most cases when `network_lock` cannot be used it is caused by old kernel vers
 
 ## AUTO_UPDATE
 
-It is not possible to set env variable AUTO_UPDATE with value "on" for the container. It will cause the container to try to update upon container restart. If not set or set to a different value than "on" container will not try to update expressvpn automatically.
+It is now possible to set env variable AUTO_UPDATE with value "on" for the container. It will cause the container to try to update upon container restart. If not set or set to a different value than "on" container will not try to update expressvpn automatically.
 
 **Available from 3.61.0.12 tag.**
 
