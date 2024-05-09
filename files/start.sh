@@ -1,7 +1,9 @@
 #!/bin/bash
 
 if [[ $AUTO_UPDATE = "on" ]]; then
-    DEBIAN_FRONTEND=noninteractive apt update && apt -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" install -y --only-upgrade expressvpn --no-install-recommends && apt autoclean && apt clean && apt autoremove && rm -rf /var/lib/apt/lists/* && rm -rf /var/log/*.log
+    DEBIAN_FRONTEND=noninteractive apt update && apt -y -o Dpkg::Options::="--force-confdef" -o \
+    Dpkg::Options::="--force-confnew" install -y --only-upgrade expressvpn --no-install-recommends \
+    && apt autoclean && apt clean && apt autoremove && rm -rf /var/lib/apt/lists/* && rm -rf /var/log/*.log
 fi
 
 if [[ -f "/etc/resolv.conf" ]]; then

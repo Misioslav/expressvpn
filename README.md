@@ -1,11 +1,11 @@
 # ExpressVPN
 
-Container-based on [polkaned/expressvpn](https://hub.docker.com/r/polkaned/expressvpn) version. This is my attempt mostly to learn more about docker.
+Container-based on [polkaned/expressvpn](https://github.com/polkaned/dockerfiles/tree/master/expressvpn) version. This is my attempt mostly to learn more about docker.
 
 ## TAGS
 
-Latest tag is based on `debian bullseye`.
-It is possible to use `debian bookworm` base with `-bookworm` tags.
+Latest tag is based on `debian bookworm`.
+It is possible to use `debian bullseye` base with `-bullseye` tags.
 Numbers in the tag corresponds to ExpressVPN version.
 
 ## PROTOCOL AND CIPHER
@@ -51,13 +51,15 @@ Also, there is a possibility to add `--env=BEAERER=access_token` from [ipinfo.io
 Additionally, healthchecks.io support has been added and you can add the id of the healthchecks link to the `HEALTHCHECK` variable in docker configs.
 DDNS or IP must be set for ipinfo.io and healthcheck.io to work. 
 
-## Build
+## DNS LEAKING CHECK
+In order to avoid DNS leaking, you have to replace `resolv.conf` on other containers that uses this one to connect to the network with the `resolv.conf` from expressvpn after it connects.
 
-**AMD64**
-`docker buildx build --build-arg NUM=<EXPRESSVPN_VERSION> --build-arg DISTRIBUTION=<DEBIAN_DISTRIBUTION> --build-arg PLATFORM=amd64 --platform linux/amd64 -t REPOSITORY/APP:VERSION .`
+In order to test if DNS is leaking you can use the following script from [macvk/dnsleaktest](https://github.com/macvk/dnsleaktest) repo and run it inside the container for example:
 
-**ARMv7 (Raspberry Pi)**
-`docker buildx build --build-arg NUM=<EXPRESSVPN_VERSION> --build-arg DISTRIBUTION=<DEBIAN_DISTRIBUTION> --build-arg PLATFORM=armhf --platform linux/arm/v7 -t REPOSITORY/APP:VERSION-armhf .`
+`docker exec -T <container_name> bash < path/to/script/on/host/machine`
+
+If you do not know how to replace the `resolv.conf` file. [polkaned/expressvpn](https://github.com/polkaned/dockerfiles/tree/master/expressvpn) provides a simple way to do it.
+Just a note, `resolv.conf` might need to be copied over to other containers each time expressvpn reconnects.
 
 ## Download
 
@@ -67,7 +69,6 @@ DDNS or IP must be set for ipinfo.io and healthcheck.io to work.
 
 ```
     docker run \
-    --env=WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8 \ #optional
     --env=CODE=code \
     --env=SERVER=smart \
     --cap-add=NET_ADMIN \
@@ -76,13 +77,14 @@ DDNS or IP must be set for ipinfo.io and healthcheck.io to work.
     --detach=true \
     --tty=true \
     --name=expressvpn \
-    --publish 80:80 \
+    --publish 80:80 \ #optional
     --env=DDNS=domain \ #optional
     --env=IP=yourIp \ #optional
     --env=BEARER=ipInfoAccessToken \ #optional
     --env=NETWORK=on/off \ #optional set to on by default
     --env=PROTOCOL=lightway_udp \ #optional set default to lightway_udp see protocol and cipher section for more information
     --env=CIPHER=chacha20 \ #optional set default to chacha20 see protocol and cipher section for more information
+    --env=WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8 \ #optional
     misioslav/expressvpn \
     /bin/bash
 ```
@@ -115,7 +117,7 @@ services:
     container_name: expressvpn
     restart: unless-stopped
     ports: # ports from which container that uses expressvpn connection will be available in local network
-      - 80:80 # example
+      - 80:80 # example & optional
     environment:
       # - WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8  # optional - Comma seperated list of dns servers you wish to use and whitelist via iptables. DO NOT set this unless you know what you are doing. Whitelisting could cause traffic to circumvent the VPN and cause a DNS leak.
       - CODE=code # Activation Code from ExpressVPN https://www.expressvpn.com/support/troubleshooting/find-activation-code/
@@ -144,4 +146,3 @@ services:
 You can choose to which location ExpressVPN should connect to by setting up `SERVER=ALIAS`, `SERVER=COUNTRY`, `SERVER=LOCATION` or `SERVER=SMART`
 
 You can check available locations from inside the container by running `expressvpn list all` command.
-
