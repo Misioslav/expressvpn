@@ -43,7 +43,4 @@ do
     echo "allowing dns server traffic in iptables: ${i}"
 done
 
-touch /var/log/temp.log
-tail -f /var/log/temp.log
-
 exec "$@"
