@@ -2,7 +2,7 @@
 
 if [[ ! -z $DDNS ]];
 then
-	checkIP=$(getent hosts $DDNS | awk '{ print $1 }')
+	checkIP=$(dig $DDNS +short A)
 else
 	checkIP=$IP
 fi
