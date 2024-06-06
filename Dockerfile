@@ -17,7 +17,7 @@ ARG TARGETPLATFORM
 COPY files/ /expressvpn/
 
 RUN apt update && apt install -y --no-install-recommends \
-    expect curl ca-certificates iproute2 wget jq iptables iputils-ping net-tools
+    expect curl ca-certificates iproute2 wget jq iptables iputils-ping net-tools dnsutils
 
 RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
     dpkg --add-architecture armhf \
