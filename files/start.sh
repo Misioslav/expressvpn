@@ -15,17 +15,17 @@ fi
 
 sed -i 's/DAEMON_ARGS=.*/DAEMON_ARGS=""/' /etc/init.d/expressvpn
 
-output=$(service expressvpn restart 2>&1)
-if [[ $output == *"failed!"* ]]; then
+output=$(service expressvpn restart)
+if echo "$output" | grep -q "failed!" > /dev/null
+then
     echo "Service expressvpn restart failed!"
-    bash /expressvpn/start.sh
     exit 1
 fi
 
 output=$(expect -f /expressvpn/activate.exp "$CODE")
-if [[ $output == *"Please activate your account."* ]]; then
+if echo "$output" | grep -q "Please activate your account" > /dev/null || echo "$output" | grep -q "Activation failed" > /dev/null
+then
     echo "Activation failed!"
-    bash /expressvpn/start.sh
     exit 1
 fi
 
@@ -35,7 +35,7 @@ expressvpn preferences set send_diagnostics false
 expressvpn preferences set block_trackers true
 bash /expressvpn/uname.sh
 expressvpn preferences set auto_connect true
-expressvpn connect $SERVER
+expressvpn connect $SERVER || exit
 
 for i in $(echo $WHITELIST_DNS | sed "s/ //g" | sed "s/,/ /g")
 do
