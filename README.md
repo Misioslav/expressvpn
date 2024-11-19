@@ -61,6 +61,22 @@ In order to test if DNS is leaking you can use the following script from [macvk/
 If you do not know how to replace the `resolv.conf` file. [polkaned/expressvpn](https://github.com/polkaned/dockerfiles/tree/master/expressvpn) provides a simple way to do it.
 Just a note, `resolv.conf` might need to be copied over to other containers each time expressvpn reconnects.
 
+## SOCKS5
+Environment variables for SOCKS5
+
+| ENV|Desciption|Value|
+| :--- |:---| :---:|
+| SOCKS|Enable/disable socks5|off|
+| SOCKS_IP|Socks IP|0.0.0.0|
+| SOCKS_PORT|Socks port|1080|
+| SOCKS_USER|Socks username|None|
+| SOCKS_PASS|Socks password|None|
+| SOCKS_WHITELIST|**(User&Pass required)** Comma-separated whitelist of ip addresses, that may use the proxy without user/pass authentication|None|
+| SOCKS_AUTH_ONCE|**(User&Pass required)** Once a specific ip address is authed successfully with user/pass, it is added to a whitelist and may use the proxy without auth|false|
+| SOCKS_LOGS|Enable/disable logging|on|
+
+
+
 ## Download
 
 `docker pull misioslav/expressvpn`
@@ -78,6 +94,7 @@ Just a note, `resolv.conf` might need to be copied over to other containers each
     --tty=true \
     --name=expressvpn \
     --publish 80:80 \ #optional
+    --publish 1080:1080 \ #optional for socks5
     --env=DDNS=domain \ #optional
     --env=IP=yourIp \ #optional
     --env=BEARER=ipInfoAccessToken \ #optional
@@ -85,6 +102,14 @@ Just a note, `resolv.conf` might need to be copied over to other containers each
     --env=PROTOCOL=lightway_udp \ #optional set default to lightway_udp see protocol and cipher section for more information
     --env=CIPHER=chacha20 \ #optional set default to chacha20 see protocol and cipher section for more information
     --env=WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8 \ #optional
+    --env=SOCKS=off \ #optional
+    --env=SOCKS_IP=0.0.0.0 \ #optional
+    --env=SOCKS_PORT=1080 \ #optional
+    --env=SOCKS_USER=someuser \ #optional (required if providing password)
+    --env=SOCKS_PASS=somepass \ #optional (required if providing username)
+    --env=SOCKS_WHITELIST=192.168.1.1 \ #optional
+    --env=SOCKS_AUTH_ONCE=false \ #optional
+    --env=SOCKS_LOGS=true \ #optional
     misioslav/expressvpn \
     /bin/bash
 ```
@@ -118,6 +143,7 @@ services:
     restart: unless-stopped
     ports: # ports from which container that uses expressvpn connection will be available in local network
       - 80:80 # example & optional
+      - 1080:1080 # example & optional, commonly used socks5 port
     environment:
       # - WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8  # optional - Comma seperated list of dns servers you wish to use and whitelist via iptables. DO NOT set this unless you know what you are doing. Whitelisting could cause traffic to circumvent the VPN and cause a DNS leak.
       - CODE=code # Activation Code from ExpressVPN https://www.expressvpn.com/support/troubleshooting/find-activation-code/
@@ -130,7 +156,14 @@ services:
       #####################################################
       - NETWORK=off/on #optional and set to on by default (This is the killswitch)
       - PROTOCOL=lightway_udp #optional set default to lightway_udp see protocol and cipher section for more information
-      - CIPHER=chacha20 #optional set default to chacha20 see protocol and cipher section for more information
+      - SOCKS=off #optional set default to off see socks5 section for more information
+      - SOCKS_IP=0.0.0.0 #optional set default to 0.0.0.0 
+      - SOCKS_PORT=1080 #optional set default to 1080 
+      - SOCKS_USER=someuser #optional set default to NONE 
+      - SOCKS_PASS=somepass #optional set default to NONE 
+      - SOCKS_WHITELIST=192.168.1.1 #optional set default to NONE 
+      - SOCKS_AUTH_ONCE=false #optional set default to false 
+      - SOCKS_LOGS=true #optional set default to true 
     cap_add:
       - NET_ADMIN
     devices:
