@@ -156,6 +156,7 @@ services:
       #####################################################
       - NETWORK=off/on #optional and set to on by default (This is the killswitch)
       - PROTOCOL=lightway_udp #optional set default to lightway_udp see protocol and cipher section for more information
+      - CIPHER=chacha20 #optional set default to chacha20 see protocol and cipher section for more information
       - SOCKS=off #optional set default to off see socks5 section for more information
       - SOCKS_IP=0.0.0.0 #optional set default to 0.0.0.0 
       - SOCKS_PORT=1080 #optional set default to 1080 
