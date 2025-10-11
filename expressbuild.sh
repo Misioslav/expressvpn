@@ -2,7 +2,9 @@
 set -euo pipefail
 
 usage() {
-    echo "Usage: $0 <version> <repository>"
+    echo "Usage: $0 <version> <repository> [distribution] [docker_platform] [package_platform] [tag]"
+    echo "Defaults: distribution=bullseye-slim, docker_platform=linux/amd64, package_platform=amd64, tag=latest"
+    echo "Use 'matrix' as distribution to run the full build matrix"
     exit 1
 }
 
@@ -22,6 +24,17 @@ build_and_push() {
         --platform "$docker_platform" \
         -t "${repository}/expressvpn:${tag}" \
         --push .
+}
+
+build_single() {
+    local version="$1"
+    local repository="$2"
+    local distribution="${3:-bullseye-slim}"
+    local docker_platform="${4:-linux/amd64}"
+    local package_platform="${5:-amd64}"
+    local tag="${6:-latest}"
+
+    build_and_push "$version" "$repository" "$distribution" "$docker_platform" "$package_platform" "$tag"
 }
 
 build_matrix() {
@@ -60,8 +73,18 @@ main() {
 
     local version="$1"
     local repository="$2"
+    local distribution="${3:-bullseye-slim}"
+    local docker_platform="${4:-linux/amd64}"
+    local package_platform="${5:-amd64}"
+    local tag="${6:-latest}"
 
-    build_matrix "$version" "$repository"
+    # If distribution is "matrix", run the full build matrix
+    if [[ "$distribution" == "matrix" ]]; then
+        build_matrix "$version" "$repository"
+    else
+        # Otherwise, build a single image with the specified or default parameters
+        build_single "$version" "$repository" "$distribution" "$docker_platform" "$package_platform" "$tag"
+    fi
 
     echo "### [Cleaning up local builder cache] ###"
     docker system prune -a -f --volumes

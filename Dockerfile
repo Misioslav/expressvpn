@@ -1,4 +1,4 @@
-ARG DISTRIBUTION
+ARG DISTRIBUTION="bullseye-slim"
 
 FROM debian:${DISTRIBUTION}-slim AS microsocks-builder
 
