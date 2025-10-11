@@ -1,23 +1,36 @@
 #!/bin/bash
+set -euo pipefail
 
-kv=$(uname -r | awk -F '.' '{
-        if ($1 < 4) { print 1; }
-        else if ($1 == 4) {
-            if ($2 <= 9) { print 1; }
-            else { print 0; }
-        }
-        else { print 0; }
-    }')
+kernel_version="$(uname -r)"
+IFS=.- read -r major minor _ <<<"$kernel_version"
+major=${major:-0}
+minor=${minor:-0}
 
-if [[ $NETWORK = "on" ]];
-then
-	if [[ $kv = 0 ]];
-	then
-		expressvpn preferences set network_lock $NETWORK
-	else
-		echo "Kernel Version is lower than minimum version of required kernel (4.9), network_lock will be disabled."
-		expressvpn preferences set network_lock off
-	fi
+required_major=4
+required_minor=9
+
+network_mode="${NETWORK:-on}"
+
+supports_network_lock() {
+    if (( major > required_major )); then
+        return 0
+    fi
+
+    if (( major == required_major && minor >= required_minor )); then
+        return 0
+    fi
+
+    return 1
+}
+
+if [[ "$network_mode" != "on" ]]; then
+    expressvpn preferences set network_lock "$network_mode"
+    exit 0
+fi
+
+if supports_network_lock; then
+    expressvpn preferences set network_lock on
 else
-	expressvpn preferences set network_lock $NETWORK
+    echo "Kernel version ${kernel_version} is lower than the minimum required (4.9); network_lock will be disabled."
+    expressvpn preferences set network_lock off
 fi

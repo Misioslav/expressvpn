@@ -1,20 +1,70 @@
-echo "### [BULDING ARM64 $1 VERSION - HUB.DOCKER.COM] ###"
-docker buildx build --build-arg NUM=$1 --build-arg DISTRIBUTION=bullseye --build-arg PLATFORM=armhf --platform linux/arm64 -t $2/expressvpn:$1-arm64-bullseye --push .
-docker buildx build --build-arg NUM=$1 --build-arg DISTRIBUTION=bookworm --build-arg PLATFORM=armhf --platform linux/arm64 -t $2/expressvpn:$1-arm64 --push .
-echo "### [BULDING ARM64 LATEST VERSION - HUB.DOCKER.COM] ###"
-docker buildx build --build-arg NUM=$1 --build-arg DISTRIBUTION=bullseye --build-arg PLATFORM=armhf --platform linux/arm64 -t $2/expressvpn:latest-arm64-bullseye --push .
-docker buildx build --build-arg NUM=$1 --build-arg DISTRIBUTION=bookworm --build-arg PLATFORM=armhf --platform linux/arm64 -t $2/expressvpn:latest-arm64 --push .
-echo "### [BULDING ARMHF $1 VERSION - HUB.DOCKER.COM] ###"
-docker buildx build --build-arg NUM=$1 --build-arg DISTRIBUTION=bullseye --build-arg PLATFORM=armhf --platform linux/arm/v7 -t $2/expressvpn:$1-armhf-bullseye --push .
-docker buildx build --build-arg NUM=$1 --build-arg DISTRIBUTION=bookworm --build-arg PLATFORM=armhf --platform linux/arm/v7 -t $2/expressvpn:$1-armhf --push .
-echo "### [BULDING ARMHF LATEST VERSION - HUB.DOCKER.COM] ###"
-docker buildx build --build-arg NUM=$1 --build-arg DISTRIBUTION=bullseye --build-arg PLATFORM=armhf --platform linux/arm/v7 -t $2/expressvpn:latest-armhf-bullseye --push .
-docker buildx build --build-arg NUM=$1 --build-arg DISTRIBUTION=bookworm --build-arg PLATFORM=armhf --platform linux/arm/v7 -t $2/expressvpn:latest-armhf --push .
-echo "### [BULDING AMD64 $1 VERSION - HUB.DOCKER.COM] ###"
-docker buildx build --build-arg NUM=$1 --build-arg DISTRIBUTION=bullseye --build-arg PLATFORM=amd64 --platform linux/amd64 -t $2/expressvpn:$1-bullseye --push .
-docker buildx build --build-arg NUM=$1 --build-arg DISTRIBUTION=bookworm --build-arg PLATFORM=amd64 --platform linux/amd64 -t $2/expressvpn:$1 --push .
-echo "### [BULDING AMD64 LATEST VERSION - HUB.DOCKER.COM] ###"
-docker buildx build --build-arg NUM=$1 --build-arg DISTRIBUTION=bullseye --build-arg PLATFORM=amd64 --platform linux/amd64 -t $2/expressvpn:latest-bullseye --push .
-docker buildx build --build-arg NUM=$1 --build-arg DISTRIBUTION=bookworm --build-arg PLATFORM=amd64 --platform linux/amd64 -t $2/expressvpn:latest --push .
-echo "### [CLEANING UP] ###"
-docker system prune -a -f --volumes
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+    echo "Usage: $0 <version> <repository>"
+    exit 1
+}
+
+build_and_push() {
+    local version="$1"
+    local repository="$2"
+    local distribution="$3"
+    local docker_platform="$4"
+    local package_platform="$5"
+    local tag="$6"
+
+    echo "### [Building ${tag} (${distribution} on ${docker_platform})] ###"
+    docker buildx build \
+        --build-arg NUM="$version" \
+        --build-arg DISTRIBUTION="$distribution" \
+        --build-arg PLATFORM="$package_platform" \
+        --platform "$docker_platform" \
+        -t "${repository}/expressvpn:${tag}" \
+        --push .
+}
+
+build_matrix() {
+    local version="$1"
+    local repository="$2"
+
+    local distributions=(bullseye bookworm)
+
+    for distribution in "${distributions[@]}"; do
+        local dist_suffix=""
+        if [[ "$distribution" == "bullseye" ]]; then
+            dist_suffix="-bullseye"
+        fi
+
+        # arm64 targets expressvpn armhf packages
+        local arm64_suffix="-arm64${dist_suffix}"
+        build_and_push "$version" "$repository" "$distribution" "linux/arm64" "armhf" "${version}${arm64_suffix}"
+        build_and_push "$version" "$repository" "$distribution" "linux/arm64" "armhf" "latest${arm64_suffix}"
+
+        # armhf targets
+        local armhf_suffix="-armhf${dist_suffix}"
+        build_and_push "$version" "$repository" "$distribution" "linux/arm/v7" "armhf" "${version}${armhf_suffix}"
+        build_and_push "$version" "$repository" "$distribution" "linux/arm/v7" "armhf" "latest${armhf_suffix}"
+
+        # amd64 targets expressvpn amd64 packages
+        local amd64_suffix="${dist_suffix}"
+        build_and_push "$version" "$repository" "$distribution" "linux/amd64" "amd64" "${version}${amd64_suffix}"
+        build_and_push "$version" "$repository" "$distribution" "linux/amd64" "amd64" "latest${amd64_suffix}"
+    done
+}
+
+main() {
+    if [[ $# -lt 2 ]]; then
+        usage
+    fi
+
+    local version="$1"
+    local repository="$2"
+
+    build_matrix "$version" "$repository"
+
+    echo "### [Cleaning up local builder cache] ###"
+    docker system prune -a -f --volumes
+}
+
+main "$@"

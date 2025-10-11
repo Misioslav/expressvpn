@@ -1,37 +1,52 @@
 #!/bin/bash
+set -euo pipefail
 
-if [[ ! -z $DDNS ]];
-then
-	checkIP=$(getent hosts $DDNS | awk '{ print $1 }')
-else
-	checkIP=$IP
-fi
+resolve_check_ip() {
+    if [[ -n ${DDNS:-} ]]; then
+        local resolved
+        resolved=$(getent hosts "$DDNS" 2>/dev/null | awk 'NR==1 { print $1 }') || true
+        [[ -n $resolved ]] && echo "$resolved"
+        return
+    fi
 
-if [[ ! -z $checkIP ]];
-then
-	expressvpnIP=$(curl -s -H "Authorization: Bearer $BEARER" 'ipinfo.io' | jq --raw-output '.ip')
-	if [[ $checkIP = $expressvpnIP ]];
-	then
-		if [[ ! -z $HEALTHCHECK ]];
-		then
-			curl https://hc-ping.com/$HEALTHCHECK/fail
-			expressvpn disconnect
-			expressvpn connect $SERVER
-			exit 1
-		else
-			expressvpn disconnect
-			expressvpn connect $SERVER
-			exit 1
-		fi
-	else
-		if [[ ! -z $HEALTHCHECK ]];
-		then
-			curl https://hc-ping.com/$HEALTHCHECK
-			exit 0
-		else
-			exit 0
-		fi
-	fi
-else
-	exit 0
-fi
+    if [[ -n ${IP:-} ]]; then
+        echo "$IP"
+    fi
+}
+
+notify_healthcheck() {
+    local suffix="$1"
+    [[ -z ${HEALTHCHECK:-} ]] && return
+
+    curl -fsS --max-time 10 "https://hc-ping.com/${HEALTHCHECK}${suffix}"
+}
+
+main() {
+    local target_ip
+    target_ip=$(resolve_check_ip || true)
+
+    [[ -z $target_ip ]] && exit 0
+
+    local express_ip
+    if ! express_ip=$(curl -fsSL --max-time 10 -H "Authorization: Bearer ${BEARER:-}" "https://ipinfo.io" | jq -r '.ip'); then
+        notify_healthcheck "/fail" || true
+        exit 1
+    fi
+
+    if [[ -z $express_ip || $express_ip == "null" ]]; then
+        notify_healthcheck "/fail" || true
+        exit 1
+    fi
+
+    if [[ "$target_ip" == "$express_ip" ]]; then
+        notify_healthcheck "/fail" || true
+        expressvpn disconnect || true
+        expressvpn connect "${SERVER:-smart}" || true
+        exit 1
+    fi
+
+    notify_healthcheck "" || true
+    exit 0
+}
+
+main
