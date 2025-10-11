@@ -1,0 +1,17 @@
+# ExpressVPN Control Server Authentication Configuration
+# This is a sample configuration file for testing
+
+[[roles]]
+name = "admin"
+routes = ["GET /v1/status", "GET /v1/servers", "GET /v1/dns", "GET /v1/ip", "GET /v1/dnsleak", "POST /v1/connect", "POST /v1/disconnect", "GET /v1/health"]
+auth = "basic"
+username = "admin"
+password = "changeme"
+
+# Read-only role for monitoring
+[[roles]]
+name = "readonly"
+routes = ["GET /v1/status", "GET /v1/servers", "GET /v1/dns", "GET /v1/ip", "GET /v1/dnsleak", "GET /v1/health"]
+auth = "basic"
+username = "readonly"
+password = "readonly123"

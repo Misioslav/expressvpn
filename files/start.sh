@@ -120,6 +120,15 @@ start_socks_proxy() {
     microsocks "${args[@]}" &
 }
 
+start_control_server() {
+    if [[ ${CONTROL_SERVER:-off} != "on" ]]; then
+        return
+    fi
+
+    log "Starting ExpressVPN control server on ${CONTROL_IP:-0.0.0.0}:${CONTROL_PORT:-8000}"
+    /expressvpn/control-server.sh &
+}
+
 main() {
     auto_update
     restore_resolver
@@ -128,6 +137,7 @@ main() {
     configure_preferences
     apply_dns_whitelist
     start_socks_proxy
+    start_control_server
 
     if [[ $# -gt 0 ]]; then
         exec "$@"

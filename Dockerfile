@@ -28,7 +28,10 @@ ENV CODE="code" \
     SOCKS_PASS="" \
     SOCKS_IP="0.0.0.0" \
     SOCKS_PORT="1080" \
-    SOCKS_WHITELIST=""
+    SOCKS_WHITELIST="" \
+    CONTROL_SERVER="off" \
+    CONTROL_PORT="8000" \
+    CONTROL_IP="0.0.0.0"
 
 ARG NUM
 ARG PLATFORM
@@ -49,7 +52,9 @@ RUN set -eux; \
         jq \
         iptables \
         iputils-ping \
-        net-tools; \
+        net-tools \
+        netcat-openbsd \
+        procps; \
     if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
         dpkg --add-architecture armhf; \
         apt-get update; \
@@ -77,7 +82,8 @@ RUN set -eux; \
         apt-get purge -y --auto-remove patchelf; \
     fi; \
     rm -rf /var/lib/apt/lists/*; \
-    rm -rf /var/log/*.log
+    rm -rf /var/log/*.log; \
+    chmod +x /expressvpn/control-server.sh
 
 HEALTHCHECK --start-period=30s --timeout=5s --interval=2m --retries=3 CMD bash /expressvpn/healthcheck.sh
 
