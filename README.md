@@ -2,10 +2,16 @@
 
 Container-based on [polkaned/expressvpn](https://github.com/polkaned/dockerfiles/tree/master/expressvpn) version. This is my attempt mostly to learn more about docker.
 
+## FEATURES
+
+- **Latest Libraries**: All system packages are upgraded to their newest versions during build for enhanced security and compatibility
+- **Multi-Distribution Support**: Supports both `debian trixie-slim` (default) and `debian bullseye-slim` distributions
+- **Automatic Package Updates**: Built-in `apt-get upgrade` ensures the latest security patches and bug fixes
+
 ## TAGS
 
-Latest tag is based on `debian bookworm`.
-It is possible to use `debian bullseye` base with `-bullseye` tags.
+Latest tag is based on `debian trixie-slim`.
+It is possible to use `debian bullseye-slim` base with `-bullseye` tags.
 Numbers in the tag corresponds to ExpressVPN version.
 
 ## PROTOCOL AND CIPHER
@@ -56,7 +62,7 @@ In order to avoid DNS leaking, you have to replace `resolv.conf` on other contai
 
 In order to test if DNS is leaking you can use the following script from [macvk/dnsleaktest](https://github.com/macvk/dnsleaktest) repo and run it inside the container for example:
 
-`docker exec -T <container_name> bash < path/to/script/on/host/machine`
+`curl -s https://raw.githubusercontent.com/macvk/dnsleaktest/refs/heads/master/dnsleaktest.sh | docker exec -i expressvpn bash -s`
 
 If you do not know how to replace the `resolv.conf` file. [polkaned/expressvpn](https://github.com/polkaned/dockerfiles/tree/master/expressvpn) provides a simple way to do it.
 Just a note, `resolv.conf` might need to be copied over to other containers each time expressvpn reconnects.
@@ -76,6 +82,21 @@ Environment variables for SOCKS5
 | SOCKS_LOGS|Enable/disable logging|on|
 
 
+
+## BUILDING
+
+To build the container locally with the latest changes:
+
+```bash
+# Build with default trixie-slim distribution
+./expressbuild.sh 3.61.0.12 test-repo
+
+# Build with bullseye-slim distribution
+./expressbuild.sh 3.61.0.12 test-repo bullseye-slim
+
+# Build matrix (both distributions)
+./expressbuild.sh 3.61.0.12 test-repo matrix
+```
 
 ## Download
 

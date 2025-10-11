@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
     echo "Usage: $0 <version> <repository> [distribution] [docker_platform] [package_platform] [tag]"
-    echo "Defaults: distribution=bullseye-slim, docker_platform=linux/amd64, package_platform=amd64, tag=latest"
+    echo "Defaults: distribution=trixie-slim, docker_platform=linux/amd64, package_platform=amd64, tag=latest"
     echo "Use 'matrix' as distribution to run the full build matrix"
     exit 1
 }
@@ -23,13 +23,13 @@ build_and_push() {
         --build-arg PLATFORM="$package_platform" \
         --platform "$docker_platform" \
         -t "${repository}/expressvpn:${tag}" \
-        --push .
+        --load .
 }
 
 build_single() {
     local version="$1"
     local repository="$2"
-    local distribution="${3:-bullseye-slim}"
+    local distribution="${3:-trixie-slim}"
     local docker_platform="${4:-linux/amd64}"
     local package_platform="${5:-amd64}"
     local tag="${6:-latest}"
@@ -41,12 +41,14 @@ build_matrix() {
     local version="$1"
     local repository="$2"
 
-    local distributions=(bullseye bookworm)
+    local distributions=(bullseye-slim trixie-slim)
 
     for distribution in "${distributions[@]}"; do
         local dist_suffix=""
-        if [[ "$distribution" == "bullseye" ]]; then
+        if [[ "$distribution" == "bullseye-slim" ]]; then
             dist_suffix="-bullseye"
+        elif [[ "$distribution" == "trixie-slim" ]]; then
+            dist_suffix="-trixie"
         fi
 
         # arm64 targets expressvpn armhf packages
@@ -73,7 +75,7 @@ main() {
 
     local version="$1"
     local repository="$2"
-    local distribution="${3:-bullseye-slim}"
+    local distribution="${3:-trixie-slim}"
     local docker_platform="${4:-linux/amd64}"
     local package_platform="${5:-amd64}"
     local tag="${6:-latest}"
@@ -86,8 +88,8 @@ main() {
         build_single "$version" "$repository" "$distribution" "$docker_platform" "$package_platform" "$tag"
     fi
 
-    echo "### [Cleaning up local builder cache] ###"
-    docker system prune -a -f --volumes
+    echo "### [Build completed successfully] ###"
+    # docker system prune -a -f --volumes
 }
 
 main "$@"

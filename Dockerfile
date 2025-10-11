@@ -1,9 +1,10 @@
 ARG DISTRIBUTION="bullseye-slim"
 
-FROM debian:${DISTRIBUTION}-slim AS microsocks-builder
+FROM debian:${DISTRIBUTION} AS microsocks-builder
 
 RUN set -eux; \
     apt-get update; \
+    apt-get upgrade -y; \
     apt-get install -y --no-install-recommends build-essential git ca-certificates; \
     git clone https://github.com/rofl0r/microsocks.git /tmp/microsocks; \
     make -C /tmp/microsocks; \
@@ -11,7 +12,7 @@ RUN set -eux; \
     apt-get purge -y --auto-remove build-essential git; \
     rm -rf /var/lib/apt/lists/*
 
-FROM debian:${DISTRIBUTION}-slim
+FROM debian:${DISTRIBUTION}
 
 ENV CODE="code" \
     SERVER="smart" \
@@ -39,6 +40,7 @@ COPY --from=microsocks-builder /tmp/microsocks/microsocks /usr/local/bin/microso
 RUN set -eux; \
     export DEBIAN_FRONTEND=noninteractive; \
     apt-get update; \
+    apt-get upgrade -y; \
     apt-get install -y --no-install-recommends \
         expect \
         curl \
@@ -51,6 +53,7 @@ RUN set -eux; \
     if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
         dpkg --add-architecture armhf; \
         apt-get update; \
+        apt-get upgrade -y; \
         apt-get install -y --no-install-recommends \
             libc6:armhf \
             libstdc++6:armhf \
