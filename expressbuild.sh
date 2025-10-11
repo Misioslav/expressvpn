@@ -1,95 +1,72 @@
 #!/bin/bash
 set -euo pipefail
 
+# ExpressVPN Docker Build Script
+# Builds ExpressVPN images for multiple distributions and platforms
+
 usage() {
-    echo "Usage: $0 <version> <repository> [distribution] [docker_platform] [package_platform] [tag]"
-    echo "Defaults: distribution=trixie-slim, docker_platform=linux/amd64, package_platform=amd64, tag=latest"
-    echo "Use 'matrix' as distribution to run the full build matrix"
+    echo "Usage: $0 <version> <repository> [distribution] [platform] [package_platform] [tag] [action]"
+    echo "Defaults: distribution=trixie-slim, platform=linux/amd64, package_platform=amd64, tag=latest, action=load"
+    echo "Use 'matrix' as distribution to build all platforms"
+    echo "Action: 'load' (local) or 'push' (to registry)"
     exit 1
 }
 
-build_and_push() {
-    local version="$1"
-    local repository="$2"
-    local distribution="$3"
-    local docker_platform="$4"
-    local package_platform="$5"
-    local tag="$6"
-
-    echo "### [Building ${tag} (${distribution} on ${docker_platform})] ###"
-    docker buildx build \
-        --build-arg NUM="$version" \
-        --build-arg DISTRIBUTION="$distribution" \
-        --build-arg PLATFORM="$package_platform" \
-        --platform "$docker_platform" \
-        -t "${repository}/expressvpn:${tag}" \
-        --load .
+build_image() {
+    local version="$1" repository="$2" distribution="$3" platform="$4" package_platform="$5" tag="$6" action="$7"
+    local image_name="${repository}/expressvpn:${tag}"
+    
+    echo "Building ${tag} (${distribution} on ${platform}) - ${action}"
+    
+    local build_args=(
+        --build-arg NUM="$version"
+        --build-arg DISTRIBUTION="$distribution"
+        --build-arg PLATFORM="$package_platform"
+        --platform "$platform"
+        -t "$image_name"
+    )
+    
+    [[ "$action" == "push" ]] && build_args+=(--push) || build_args+=(--load)
+    
+    docker buildx build "${build_args[@]}" .
 }
 
 build_single() {
-    local version="$1"
-    local repository="$2"
-    local distribution="${3:-trixie-slim}"
-    local docker_platform="${4:-linux/amd64}"
-    local package_platform="${5:-amd64}"
-    local tag="${6:-latest}"
-
-    build_and_push "$version" "$repository" "$distribution" "$docker_platform" "$package_platform" "$tag"
+    local version="$1" repository="$2" distribution="${3:-trixie-slim}" platform="${4:-linux/amd64}" package_platform="${5:-amd64}" tag="${6:-latest}" action="${7:-load}"
+    build_image "$version" "$repository" "$distribution" "$platform" "$package_platform" "$tag" "$action"
 }
 
 build_matrix() {
-    local version="$1"
-    local repository="$2"
-
+    local version="$1" repository="$2" action="${3:-load}"
     local distributions=(bullseye-slim trixie-slim)
 
     for distribution in "${distributions[@]}"; do
         local dist_suffix=""
-        if [[ "$distribution" == "bullseye-slim" ]]; then
-            dist_suffix="-bullseye"
-        elif [[ "$distribution" == "trixie-slim" ]]; then
-            dist_suffix="-trixie"
-        fi
+        [[ "$distribution" == "bullseye-slim" ]] && dist_suffix="-bullseye"
+        [[ "$distribution" == "trixie-slim" ]] && dist_suffix="-trixie"
 
-        # arm64 targets expressvpn armhf packages
-        local arm64_suffix="-arm64${dist_suffix}"
-        build_and_push "$version" "$repository" "$distribution" "linux/arm64" "armhf" "${version}${arm64_suffix}"
-        build_and_push "$version" "$repository" "$distribution" "linux/arm64" "armhf" "latest${arm64_suffix}"
-
-        # armhf targets
-        local armhf_suffix="-armhf${dist_suffix}"
-        build_and_push "$version" "$repository" "$distribution" "linux/arm/v7" "armhf" "${version}${armhf_suffix}"
-        build_and_push "$version" "$repository" "$distribution" "linux/arm/v7" "armhf" "latest${armhf_suffix}"
-
-        # amd64 targets expressvpn amd64 packages
-        local amd64_suffix="${dist_suffix}"
-        build_and_push "$version" "$repository" "$distribution" "linux/amd64" "amd64" "${version}${amd64_suffix}"
-        build_and_push "$version" "$repository" "$distribution" "linux/amd64" "amd64" "latest${amd64_suffix}"
+        # ARM64, ARMv7, AMD64 platforms
+        build_image "$version" "$repository" "$distribution" "linux/arm64" "armhf" "${version}-arm64${dist_suffix}" "$action"
+        build_image "$version" "$repository" "$distribution" "linux/arm64" "armhf" "latest-arm64${dist_suffix}" "$action"
+        build_image "$version" "$repository" "$distribution" "linux/arm/v7" "armhf" "${version}-armhf${dist_suffix}" "$action"
+        build_image "$version" "$repository" "$distribution" "linux/arm/v7" "armhf" "latest-armhf${dist_suffix}" "$action"
+        build_image "$version" "$repository" "$distribution" "linux/amd64" "amd64" "${version}${dist_suffix}" "$action"
+        build_image "$version" "$repository" "$distribution" "linux/amd64" "amd64" "latest${dist_suffix}" "$action"
     done
 }
 
 main() {
-    if [[ $# -lt 2 ]]; then
-        usage
-    fi
+    [[ $# -lt 2 ]] && usage
 
-    local version="$1"
-    local repository="$2"
-    local distribution="${3:-trixie-slim}"
-    local docker_platform="${4:-linux/amd64}"
-    local package_platform="${5:-amd64}"
-    local tag="${6:-latest}"
+    local version="$1" repository="$2" distribution="${3:-trixie-slim}" platform="${4:-linux/amd64}" package_platform="${5:-amd64}" tag="${6:-latest}" action="${7:-push}"
 
-    # If distribution is "matrix", run the full build matrix
     if [[ "$distribution" == "matrix" ]]; then
-        build_matrix "$version" "$repository"
+        build_matrix "$version" "$repository" "$action"
     else
-        # Otherwise, build a single image with the specified or default parameters
-        build_single "$version" "$repository" "$distribution" "$docker_platform" "$package_platform" "$tag"
+        build_single "$version" "$repository" "$distribution" "$platform" "$package_platform" "$tag" "$action"
     fi
 
-    echo "### [Build completed successfully] ###"
-    # docker system prune -a -f --volumes
+    [[ "$action" == "load" ]] && docker system prune -a -f --volumes
 }
 
 main "$@"
