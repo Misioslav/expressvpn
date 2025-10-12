@@ -166,48 +166,6 @@ auth = "none"
 - All endpoints are accessible without credentials
 - **Warning**: Only use this in trusted environments
 
-#### Role-Based Access Control
-- Multiple roles can be defined with different permissions
-- Each role can have access to specific routes
-- Routes are defined as HTTP method and path combinations
-
-```toml
-# Admin role with full access
-[[roles]]
-name = "admin"
-routes = ["GET /v1/status", "GET /v1/servers", "GET /v1/dns", "GET /v1/ip", "GET /v1/dnsleak", "POST /v1/connect", "POST /v1/disconnect", "GET /v1/health"]
-auth = "basic"
-username = "admin"
-password = "changeme"
-
-# Read-only role for monitoring
-[[roles]]
-name = "readonly"
-routes = ["GET /v1/status", "GET /v1/servers", "GET /v1/dns", "GET /v1/ip", "GET /v1/dnsleak", "GET /v1/health"]
-auth = "basic"
-username = "readonly"
-password = "readonly123"
-```
-
-#### Security Considerations
-
-**Authentication Best Practices:**
-- Use strong, unique passwords for each role
-- Regularly rotate credentials
-- Use read-only roles for monitoring applications
-- Only grant admin access to trusted users
-- Consider using environment variables for sensitive credentials
-
-**Network Security:**
-- The control server binds to `0.0.0.0` by default (all interfaces)
-- Consider binding to specific interfaces in production: `CONTROL_IP=127.0.0.1`
-- Use firewall rules to restrict access to the control port
-- Consider using a reverse proxy with SSL/TLS termination
-
-**Configuration Security:**
-- Store `config.toml` files securely with appropriate permissions
-- Avoid committing credentials to version control
-- Use Docker secrets or environment variables for sensitive data
 
 ### API Endpoints
 - `GET /v1/status` - Get ExpressVPN connection status
@@ -226,18 +184,6 @@ password = "readonly123"
 # Check status
 curl -u admin:changeme http://localhost:8000/v1/status
 
-# List servers
-curl -u admin:changeme http://localhost:8000/v1/servers
-
-# Get DNS information
-curl -u admin:changeme http://localhost:8000/v1/dns
-
-# Get public IP and location
-curl -u admin:changeme http://localhost:8000/v1/ip
-
-# Run DNS leak test
-curl -u admin:changeme http://localhost:8000/v1/dnsleak
-
 # Connect to a server
 curl -u admin:changeme -X POST -H "Content-Type: application/json" \
   -d '{"server": "smart"}' http://localhost:8000/v1/connect
@@ -251,18 +197,6 @@ curl -u admin:changeme -X POST http://localhost:8000/v1/disconnect
 # Check status
 curl -H "Authorization: Bearer your-secret-api-key-here" http://localhost:8000/v1/status
 
-# List servers
-curl -H "Authorization: Bearer your-secret-api-key-here" http://localhost:8000/v1/servers
-
-# Get DNS information
-curl -H "Authorization: Bearer your-secret-api-key-here" http://localhost:8000/v1/dns
-
-# Get public IP and location
-curl -H "Authorization: Bearer your-secret-api-key-here" http://localhost:8000/v1/ip
-
-# Run DNS leak test
-curl -H "Authorization: Bearer your-secret-api-key-here" http://localhost:8000/v1/dnsleak
-
 # Connect to a server
 curl -H "Authorization: Bearer your-secret-api-key-here" -X POST -H "Content-Type: application/json" \
   -d '{"server": "smart"}' http://localhost:8000/v1/connect
@@ -274,27 +208,6 @@ curl -H "Authorization: Bearer your-secret-api-key-here" -X POST http://localhos
 **No Authentication (when auth = "none" or no config file):**
 ```bash
 # All endpoints accessible without credentials
-curl http://localhost:8000/v1/status
-curl http://localhost:8000/v1/servers
-curl http://localhost:8000/v1/dns
-curl http://localhost:8000/v1/ip
-curl http://localhost:8000/v1/dnsleak
-```
-
-### Testing the Control Server
-
-You can test the control server using curl commands. The server supports multiple authentication methods as configured in your `config.toml` file.
-
-**Example test commands:**
-
-```bash
-# Test with basic authentication (if configured)
-curl -u admin:changeme http://localhost:8000/v1/status
-
-# Test with API key authentication (if configured)
-curl -H "Authorization: Bearer your-secret-api-key-here" http://localhost:8000/v1/status
-
-# Test without authentication (if auth = "none" or no config file)
 curl http://localhost:8000/v1/status
 ```
 
