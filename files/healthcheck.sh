@@ -4,7 +4,11 @@ set -euo pipefail
 resolve_check_ip() {
     if [[ -n ${DDNS:-} ]]; then
         local resolved
-        resolved=$(getent hosts "$DDNS" 2>/dev/null | awk 'NR==1 { print $1 }') || true
+        resolved=$(getent ahostsv4 "$DDNS" 2>/dev/null | awk 'NR==1 { print $1 }') || true
+        if [[ -z $resolved ]]; then
+            # Fallback to any family (likely IPv6) so we still perform the check
+            resolved=$(getent hosts "$DDNS" 2>/dev/null | awk 'NR==1 { print $1 }') || true
+        fi
         [[ -n $resolved ]] && echo "$resolved"
         return
     fi
