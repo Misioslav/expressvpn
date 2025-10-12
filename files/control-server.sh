@@ -8,392 +8,499 @@ CONTROL_PORT="${CONTROL_PORT:-8000}"
 CONTROL_IP="${CONTROL_IP:-0.0.0.0}"
 AUTH_CONFIG="${AUTH_CONFIG:-/expressvpn/config.toml}"
 
+declare -a ROLE_NAMES=()
+declare -a ROLE_AUTH_TYPES=()
+declare -a ROLE_USERS=()
+declare -a ROLE_PASSWORDS=()
+declare -a ROLE_KEYS=()
+declare -a ROLE_ROUTES=()
+ROLE_COUNT=0
+AUTH_CONFIG_MTIME=""
+
+AUTH_FAILURE_STATUS="401 Unauthorized"
+AUTH_FAILURE_HEADER=""
+AUTH_FAILURE_MESSAGE="Authentication required"
+
 log() {
     echo "[control-server] $*" >&2
 }
 
-# Simple HTTP response function
 http_response() {
     local status_code="$1"
     local content_type="${2:-application/json}"
-    local body="$3"
-    
-    echo -e "HTTP/1.1 $status_code\r
-Content-Type: $content_type\r
-Content-Length: ${#body}\r
-Connection: close\r
-\r
-$body"
+    local body="${3:-}"
+    local extra_headers="${4:-}"
+    local body_length
+
+    body_length=$(printf '%s' "$body" | LC_ALL=C wc -c | tr -d ' ')
+
+    printf 'HTTP/1.1 %s\r\n' "$status_code"
+    printf 'Content-Type: %s\r\n' "$content_type"
+    printf 'Content-Length: %s\r\n' "$body_length"
+    printf 'Connection: close\r\n'
+    if [[ -n "$extra_headers" ]]; then
+        printf '%s\r\n' "$extra_headers"
+    fi
+    printf '\r\n%s' "$body"
 }
 
-# Parse HTTP request
-parse_request() {
-    local line
-    read -r line
-    local method path version
-    read -r method path version <<< "$line"
-    
-    # Read headers
-    local headers=()
-    while read -r line && [[ -n "$line" ]]; do
-        headers+=("$line")
-    done
-    
-    echo "$method|$path|${headers[*]}"
+uppercase() {
+    printf '%s' "$1" | tr '[:lower:]' '[:upper:]'
 }
 
-# Authentication check
+load_auth_config() {
+    ROLE_NAMES=()
+    ROLE_AUTH_TYPES=()
+    ROLE_USERS=()
+    ROLE_PASSWORDS=()
+    ROLE_KEYS=()
+    ROLE_ROUTES=()
+    ROLE_COUNT=0
+
+    if [[ ! -f "$AUTH_CONFIG" ]]; then
+        local env_auth="${CONTROL_AUTH_TYPE:-}"
+        if [[ -n "$env_auth" ]]; then
+            local routes_input="${CONTROL_AUTH_ROUTES:-*}"
+            local formatted_routes=""
+            IFS=',' read -ra route_parts <<< "$routes_input"
+            if (( ${#route_parts[@]} == 0 )); then
+                route_parts=('*')
+            fi
+            for route in "${route_parts[@]}"; do
+                route="${route#${route%%[![:space:]]*}}"
+                route="${route%${route##*[![:space:]]}}"
+                [[ -z "$route" ]] && continue
+                if [[ -n "$formatted_routes" ]]; then
+                    formatted_routes+=$'\n'
+                fi
+                formatted_routes+="$route"
+            done
+            [[ -z "$formatted_routes" ]] && formatted_routes="*"
+
+            ROLE_NAMES+=("${CONTROL_AUTH_NAME:-env-role}")
+            ROLE_AUTH_TYPES+=("$env_auth")
+            ROLE_USERS+=("${CONTROL_AUTH_USER:-}")
+            ROLE_PASSWORDS+=("${CONTROL_AUTH_PASSWORD:-}")
+            ROLE_KEYS+=("${CONTROL_API_KEY:-}")
+            ROLE_ROUTES+=("$formatted_routes")
+            ROLE_COUNT=1
+        fi
+        return
+    fi
+
+    local mtime
+    mtime=$(stat -c %Y "$AUTH_CONFIG" 2>/dev/null || echo "")
+    if [[ "$mtime" == "$AUTH_CONFIG_MTIME" && "$ROLE_COUNT" -gt 0 ]]; then
+        return
+    fi
+
+    AUTH_CONFIG_MTIME="$mtime"
+
+    local parse_output
+    if ! parse_output=$(python3 - "$AUTH_CONFIG" <<'PY'
+import sys, tomllib
+path = sys.argv[1]
+try:
+    with open(path, "rb") as fh:
+        data = tomllib.load(fh)
+except Exception as exc:
+    print(f"ERROR\t{exc}", file=sys.stderr)
+    sys.exit(1)
+roles = data.get("roles", [])
+for role in roles:
+    name = role.get("name", "") or ""
+    auth = role.get("auth", "") or ""
+    username = role.get("username", "") or ""
+    password = role.get("password", "") or ""
+    api_key = role.get("api_key", "") or ""
+    routes = role.get("routes") or []
+    encoded_routes = "\x1f".join(routes)
+    print("\t".join([name, auth, username, password, api_key, encoded_routes]))
+PY
+    ); then
+        log "Failed to parse auth configuration at $AUTH_CONFIG"
+        ROLE_COUNT=0
+        return
+    fi
+
+    while IFS=$'\t' read -r name auth username password api_key routes_line; do
+        ROLE_NAMES+=("$name")
+        ROLE_AUTH_TYPES+=("$auth")
+        ROLE_USERS+=("$username")
+        ROLE_PASSWORDS+=("$password")
+        ROLE_KEYS+=("$api_key")
+        ROLE_ROUTES+=("${routes_line//$'\x1f'/$'\n'}")
+    done <<< "$parse_output"
+
+    ROLE_COUNT=${#ROLE_NAMES[@]}
+}
+
+role_allows_route() {
+    local idx="$1"
+    local route="$2"
+
+    if [[ -z "${ROLE_ROUTES[idx]}" ]]; then
+        return 0
+    fi
+
+    while IFS= read -r allowed || [[ -n "$allowed" ]]; do
+        allowed="$(trim "$allowed")"
+        [[ -z "$allowed" ]] && continue
+        if [[ "$allowed" == "$route" || "$allowed" == "*" ]]; then
+            return 0
+        fi
+    done <<< "${ROLE_ROUTES[idx]}"
+
+    return 1
+}
+
+extract_auth_value() {
+    local header="$1"
+    printf '%s' "$header" | sed -n 's/^[Aa]uthorization:[[:space:]]*//p'
+}
+
+decode_basic_credentials() {
+    local encoded="$1"
+    printf '%s' "$encoded" | base64 -d 2>/dev/null || true
+}
+
 check_auth() {
     local auth_header="$1"
     local method="$2"
     local path="$3"
-    
-    # If no auth config, allow all (for backward compatibility)
-    [[ ! -f "$AUTH_CONFIG" ]] && return 0
-    
-    # Check for "none" authentication (explicitly disabled)
-    local auth_type
-    auth_type=$(grep -E '^\s*auth\s*=' "$AUTH_CONFIG" | sed 's/.*=\s*"\([^"]*\)".*/\1/' || true)
-    
-    if [[ "$auth_type" == "none" ]]; then
+
+    load_auth_config
+
+    AUTH_FAILURE_STATUS="401 Unauthorized"
+    AUTH_FAILURE_HEADER=""
+    AUTH_FAILURE_MESSAGE="Authentication required"
+
+    [[ "$path" == "" ]] && path="/"
+    local method_upper
+    method_upper=$(uppercase "$method")
+    local route="${method_upper} ${path}"
+
+    if [[ "$ROLE_COUNT" -eq 0 ]]; then
         return 0
     fi
-    
-    # Check for API key authentication
-    if [[ "$auth_type" == "api_key" ]]; then
-        local api_key
-        api_key=$(echo "$auth_header" | sed -n 's/.*Authorization: Bearer \([^[:space:]]*\).*/\1/p' || true)
-        
-        if [[ -z "$api_key" ]]; then
-            return 1
+
+    local header_value route_allowed=false failure_header=""
+    header_value=$(extract_auth_value "$auth_header")
+
+    for (( idx=0; idx<ROLE_COUNT; idx++ )); do
+        if ! role_allows_route "$idx" "$route"; then
+            continue
         fi
-        
-        local config_api_key
-        config_api_key=$(grep -E '^\s*api_key\s*=' "$AUTH_CONFIG" | sed 's/.*=\s*"\([^"]*\)".*/\1/' || true)
-        
-        if [[ "$api_key" == "$config_api_key" ]]; then
-            return 0
-        fi
-        
-        return 1
+        route_allowed=true
+
+        local auth_type="${ROLE_AUTH_TYPES[idx]}"
+        case "$auth_type" in
+            ""|"basic")
+                failure_header='WWW-Authenticate: Basic realm="ExpressVPN"'
+                if [[ -z "$header_value" ]]; then
+                    continue
+                fi
+                if [[ "$header_value" =~ ^[Bb]asic[[:space:]]+(.+)$ ]]; then
+                    local decoded
+                    decoded=$(decode_basic_credentials "${BASH_REMATCH[1]}")
+                    local username password
+                    IFS=':' read -r username password <<< "${decoded:-:}"
+                    if [[ -n "$username" && -n "$password" ]] && \
+                       [[ "$username" == "${ROLE_USERS[idx]}" && "$password" == "${ROLE_PASSWORDS[idx]}" ]]; then
+                        return 0
+                    fi
+                fi
+                ;;
+            "api_key")
+                failure_header='WWW-Authenticate: Bearer realm="ExpressVPN"'
+                if [[ -z "$header_value" ]]; then
+                    continue
+                fi
+                if [[ "$header_value" =~ ^[Bb]earer[[:space:]]+(.+)$ ]]; then
+                    local token="${BASH_REMATCH[1]}"
+                    if [[ "$token" == "${ROLE_KEYS[idx]}" && -n "$token" ]]; then
+                        return 0
+                    fi
+                fi
+                ;;
+            "none")
+                return 0
+                ;;
+            *)
+                continue
+                ;;
+        esac
+    done
+
+    if [[ "$route_allowed" == false ]]; then
+        AUTH_FAILURE_STATUS="403 Forbidden"
+        AUTH_FAILURE_MESSAGE="Route not permitted for configured credentials"
+        AUTH_FAILURE_HEADER=""
+    else
+        AUTH_FAILURE_STATUS="401 Unauthorized"
+        AUTH_FAILURE_MESSAGE="Authentication required"
+        AUTH_FAILURE_HEADER="$failure_header"
     fi
-    
-    # Default to basic authentication
-    if [[ "$auth_type" == "basic" || -z "$auth_type" ]]; then
-        # Extract username:password from Authorization header
-        local auth_string
-        auth_string=$(echo "$auth_header" | sed -n 's/.*Authorization: Basic \([^[:space:]]*\).*/\1/p' | base64 -d 2>/dev/null || true)
-        
-        if [[ -z "$auth_string" ]]; then
-            return 1
-        fi
-        
-        local username password
-        IFS=':' read -r username password <<< "$auth_string"
-        
-        # Simple config parsing (basic TOML-like format)
-        local config_username config_password
-        config_username=$(grep -E '^\s*username\s*=' "$AUTH_CONFIG" | sed 's/.*=\s*"\([^"]*\)".*/\1/' || true)
-        config_password=$(grep -E '^\s*password\s*=' "$AUTH_CONFIG" | sed 's/.*=\s*"\([^"]*\)".*/\1/' || true)
-        
-        if [[ "$username" == "$config_username" && "$password" == "$config_password" ]]; then
-            return 0
-        fi
-    fi
-    
+
     return 1
 }
 
-# Get ExpressVPN status
 get_expressvpn_status() {
-    local status
+    local status connected="false" server="" ip=""
     if status=$(expressvpn status 2>/dev/null); then
-        local connected=false
-        local server=""
-        local ip=""
-        
-        if echo "$status" | grep -q "Connected to"; then
-            connected=true
-            server=$(echo "$status" | grep "Connected to" | sed 's/.*Connected to \([^[:space:]]*\).*/\1/')
-            ip=$(echo "$status" | grep "Your new IP" | sed 's/.*Your new IP is \([^[:space:]]*\).*/\1/')
+        if grep -q "Connected to" <<< "$status"; then
+            connected="true"
+            server=$(grep -m1 "Connected to" <<< "$status" | sed 's/.*Connected to //')
         fi
-        
-        cat << EOF
-{
-  "connected": $connected,
-  "server": "$server",
-  "ip": "$ip",
-  "status": "$status"
-}
-EOF
+        if grep -q "Your new IP address is" <<< "$status"; then
+            ip=$(grep -m1 "Your new IP address is" <<< "$status" | sed 's/.*Your new IP address is //; s/[[:space:]]*$//')
+        elif grep -q "Your new IP is" <<< "$status"; then
+            ip=$(grep -m1 "Your new IP is" <<< "$status" | sed 's/.*Your new IP is //; s/[[:space:]]*$//')
+        fi
+        jq -n --arg connected "$connected" \
+              --arg server "$server" \
+              --arg ip "$ip" \
+              --arg status "$status" \
+              '{connected: ($connected == "true"), server: $server, ip: $ip, status: $status}'
     else
-        cat << EOF
-{
-  "connected": false,
-  "server": "",
-  "ip": "",
-  "status": "ExpressVPN not running"
-}
-EOF
+        jq -n '{connected: false, server: "", ip: "", status: "ExpressVPN not running"}'
     fi
 }
 
-# Get available servers
 get_servers() {
     local servers
     if servers=$(expressvpn list all 2>/dev/null); then
-        # Convert to JSON format
-        echo "$servers" | awk '
-        BEGIN { print "[" }
-        /^[A-Z]/ { 
-            if (NR > 1) print ","
-            gsub(/"/, "\\\"")
-            print "  \"" $0 "\""
-        }
-        END { print "]" }
-        '
+        printf '%s\n' "$servers" | jq -R -s 'split("\n") | map(select(length>0))'
     else
-        echo '[]'
+        jq -n '[]'
     fi
 }
 
-# Get DNS information
 get_dns_info() {
-    local dns_servers=()
     local resolv_conf="/etc/resolv.conf"
-    
-    # Read DNS servers from resolv.conf
+    local dns_entries=()
     if [[ -f "$resolv_conf" ]]; then
         while read -r line; do
+            line=${line%$'\r'}
             if [[ "$line" =~ ^nameserver[[:space:]]+([^[:space:]]+) ]]; then
-                dns_servers+=("${BASH_REMATCH[1]}")
+                dns_entries+=("${BASH_REMATCH[1]}")
             fi
         done < "$resolv_conf"
     fi
-    
-    # Convert to JSON
-    local json_dns="["
-    for i in "${!dns_servers[@]}"; do
-        [[ $i -gt 0 ]] && json_dns+=","
-        json_dns+="\"${dns_servers[$i]}\""
-    done
-    json_dns+="]"
-    
-    cat << EOF
-{
-  "dns_servers": $json_dns,
-  "resolv_conf": "$(cat "$resolv_conf" 2>/dev/null | tr '\n' ';' | sed 's/;$/\\n/')"
-}
-EOF
+
+    local dns_json
+    if ((${#dns_entries[@]} == 0)); then
+        dns_json='[]'
+    else
+        dns_json=$(printf '%s\n' "${dns_entries[@]}" | jq -R -s 'split("\n") | map(select(length>0))')
+    fi
+    local resolv_content
+    resolv_content=$(cat "$resolv_conf" 2>/dev/null || printf '')
+
+    jq -n --argjson dns "$dns_json" --arg resolv "$resolv_content" '
+        {
+            dns_servers: $dns,
+            resolv_conf: $resolv
+        }'
 }
 
-# Get public IP information
 get_public_ip() {
-    local ip_info
-    local ip=""
-    local country=""
-    local city=""
-    local org=""
-    
-    # Try to get IP info with bearer token if available
+    local ip_info="" ip="" country="" city="" org=""
+
     if [[ -n "${BEARER:-}" ]]; then
-        if ip_info=$(curl -fsSL --max-time 10 -H "Authorization: Bearer ${BEARER}" "https://ipinfo.io" 2>/dev/null); then
-            ip=$(echo "$ip_info" | jq -r '.ip // empty' 2>/dev/null)
-            country=$(echo "$ip_info" | jq -r '.country // empty' 2>/dev/null)
-            city=$(echo "$ip_info" | jq -r '.city // empty' 2>/dev/null)
-            org=$(echo "$ip_info" | jq -r '.org // empty' 2>/dev/null)
-        fi
+        ip_info=$(curl -fsSL --max-time 10 -H "Authorization: Bearer ${BEARER}" "https://ipinfo.io" 2>/dev/null || printf '')
     fi
-    
-    # Fallback to simple IP check if no bearer token or if it failed
-    if [[ -z "$ip" || "$ip" == "null" ]]; then
-        ip=$(curl -fsSL --max-time 10 "https://ipinfo.io/ip" 2>/dev/null || echo "")
+
+    if [[ -n "$ip_info" ]]; then
+        ip=$(printf '%s' "$ip_info" | jq -r '.ip // empty' 2>/dev/null || printf '')
+        country=$(printf '%s' "$ip_info" | jq -r '.country // empty' 2>/dev/null || printf '')
+        city=$(printf '%s' "$ip_info" | jq -r '.city // empty' 2>/dev/null || printf '')
+        org=$(printf '%s' "$ip_info" | jq -r '.org // empty' 2>/dev/null || printf '')
     fi
-    
-    cat << EOF
-{
-  "ip": "$ip",
-  "country": "$country",
-  "city": "$city",
-  "organization": "$org",
-  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-}
-EOF
+
+    if [[ -z "$ip" ]]; then
+        ip=$(curl -fsSL --max-time 10 "https://ipinfo.io/ip" 2>/dev/null || printf '')
+    fi
+
+    jq -n --arg ip "$ip" \
+          --arg country "$country" \
+          --arg city "$city" \
+          --arg organization "$org" \
+          --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          '{ip: $ip, country: $country, city: $city, organization: $organization, timestamp: $timestamp}'
 }
 
-# Run DNS leak test
 run_dns_leak_test() {
-    local test_result
-    local temp_file="/tmp/dnsleaktest_result"
-    
-    # Run the DNS leak test and capture output
-    if test_result=$(curl -s https://raw.githubusercontent.com/macvk/dnsleaktest/refs/heads/master/dnsleaktest.sh | bash -s 2>&1); then
-        # Parse the results
-        local dns_servers=()
-        local test_summary=""
-        
-        # Extract DNS servers found
-        while IFS= read -r line; do
-            if [[ "$line" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-                dns_servers+=("$line")
-            elif [[ "$line" =~ ^[A-Za-z] ]]; then
-                test_summary="$line"
-            fi
-        done <<< "$test_result"
-        
-        # Convert to JSON
-        local json_dns="["
-        for i in "${!dns_servers[@]}"; do
-            [[ $i -gt 0 ]] && json_dns+=","
-            json_dns+="\"${dns_servers[$i]}\""
-        done
-        json_dns+="]"
-        
-        cat << EOF
-{
-  "dns_servers_found": $json_dns,
-  "test_summary": "$test_summary",
-  "raw_output": "$(echo "$test_result" | tr '\n' ';' | sed 's/;$/\\n/')",
-  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-}
-EOF
-    else
-        cat << EOF
-{
-  "error": "DNS leak test failed",
-  "raw_output": "$(echo "$test_result" | tr '\n' ';' | sed 's/;$/\\n/')",
-  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-}
-EOF
-    fi
-}
-
-# Connect to server
-connect_server() {
-    local server="$1"
-    
-    if expressvpn connect "$server" 2>/dev/null; then
-        cat << EOF
-{
-  "success": true,
-  "message": "Connected to $server"
-}
-EOF
-    else
-        cat << EOF
-{
-  "success": false,
-  "message": "Failed to connect to $server"
-}
-EOF
-    fi
-}
-
-# Disconnect
-disconnect_vpn() {
-    if expressvpn disconnect 2>/dev/null; then
-        cat << EOF
-{
-  "success": true,
-  "message": "Disconnected successfully"
-}
-EOF
-    else
-        cat << EOF
-{
-  "success": false,
-  "message": "Failed to disconnect"
-}
-EOF
-    fi
-}
-
-# Handle HTTP request
-handle_request() {
-    local request_info="$1"
-    local method path headers
-    IFS='|' read -r method path headers <<< "$request_info"
-    
-    # Extract Authorization header
-    local auth_header=""
-    for header in $headers; do
-        if [[ "$header" =~ ^Authorization: ]]; then
-            auth_header="$header"
-            break
-        fi
-    done
-    
-    # Check authentication
-    if ! check_auth "$auth_header" "$method" "$path"; then
-        http_response "401 Unauthorized" "application/json" '{"error": "Authentication required"}'
+    local raw_result
+    if ! raw_result=$(bash /expressvpn/dnsleaktest.sh 2>&1); then
+        jq -n --arg error "DNS leak test failed" \
+              --arg raw "$raw_result" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              '{error: $error, raw_output: $raw, timestamp: $timestamp}'
         return
     fi
-    
-    # Route requests
-    case "$method $path" in
+
+    local dns_json ip_info conclusion
+    dns_json=$(printf '%s' "$raw_result" | jq -c '[.[] | select(.type == "dns") | .ip]')
+    ip_info=$(printf '%s' "$raw_result" | jq -c '(.[] | select(.type == "ip")) // {}')
+    conclusion=$(printf '%s' "$raw_result" | jq -r '(.[] | select(.type == "conclusion") | .ip) // ""')
+
+    jq -n --argjson dns "$dns_json" \
+          --argjson ip "$ip_info" \
+          --arg conclusion "$conclusion" \
+          --arg raw "$raw_result" \
+          --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          '{dns_servers_found: $dns, ip_info: $ip, conclusion: $conclusion, raw_output: $raw, timestamp: $timestamp}'
+}
+
+connect_server() {
+    local server="$1"
+    local output success="false"
+    if output=$(expressvpn connect "$server" 2>&1); then
+        success="true"
+    fi
+
+    jq -n --arg success "$success" \
+          --arg message "$output" \
+          '{success: ($success == "true"), message: $message}'
+}
+
+disconnect_vpn() {
+    local output success="false"
+    if output=$(expressvpn disconnect 2>&1); then
+        success="true"
+    fi
+
+    jq -n --arg success "$success" \
+          --arg message "$output" \
+          '{success: ($success == "true"), message: $message}'
+}
+
+health_status() {
+    jq -n --arg status "ok" --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+        {status: $status, timestamp: $timestamp}'
+}
+
+handle_http_request() {
+    local method="$1"
+    local full_path="$2"
+    local auth_header="$3"
+    local body="$4"
+
+    local path="${full_path%%\?*}"
+    [[ -z "$path" ]] && path="/"
+
+    if ! check_auth "$auth_header" "$method" "$path"; then
+        local error_body
+        error_body=$(jq -n --arg error "$AUTH_FAILURE_MESSAGE" '{error: $error}')
+        http_response "$AUTH_FAILURE_STATUS" "application/json" "$error_body" "$AUTH_FAILURE_HEADER"
+        return
+    fi
+
+    local method_upper
+    method_upper=$(uppercase "$method")
+
+    case "${method_upper} $path" in
         "GET /v1/status")
             http_response "200 OK" "application/json" "$(get_expressvpn_status)"
-            ;;
-        "GET /v1/servers")
-            http_response "200 OK" "application/json" "$(get_servers)"
-            ;;
-        "GET /v1/dns")
-            http_response "200 OK" "application/json" "$(get_dns_info)"
             ;;
         "GET /v1/ip")
             http_response "200 OK" "application/json" "$(get_public_ip)"
             ;;
+        "GET /v1/dns")
+            http_response "200 OK" "application/json" "$(get_dns_info)"
+            ;;
         "GET /v1/dnsleak")
             http_response "200 OK" "application/json" "$(run_dns_leak_test)"
             ;;
+        "GET /v1/servers")
+            http_response "200 OK" "application/json" "$(get_servers)"
+            ;;
+        "GET /v1/health")
+            http_response "200 OK" "application/json" "$(health_status)"
+            ;;
         "POST /v1/connect")
-            # Read POST body
-            local body=""
-            read -r body
-            local server
-            server=$(echo "$body" | jq -r '.server // empty' 2>/dev/null || echo "")
-            if [[ -z "$server" ]]; then
-                http_response "400 Bad Request" "application/json" '{"error": "Server parameter required"}'
-            else
-                http_response "200 OK" "application/json" "$(connect_server "$server")"
+            local server="smart"
+            if [[ -n "$body" ]]; then
+                local parsed_server
+                parsed_server=$(printf '%s' "$body" | jq -r '.server // empty' 2>/dev/null || printf '')
+                if [[ -n "$parsed_server" && "$parsed_server" != "null" ]]; then
+                    server="$parsed_server"
+                fi
             fi
+            http_response "200 OK" "application/json" "$(connect_server "$server")"
             ;;
         "POST /v1/disconnect")
             http_response "200 OK" "application/json" "$(disconnect_vpn)"
             ;;
-        "GET /v1/health")
-            http_response "200 OK" "application/json" '{"status": "healthy"}'
-            ;;
         *)
-            http_response "404 Not Found" "application/json" '{"error": "Endpoint not found"}'
+            local error_body
+            error_body=$(jq -n --arg error "Endpoint not found" '{error: $error}')
+            http_response "404 Not Found" "application/json" "$error_body"
             ;;
     esac
 }
 
-# Main server loop
-main() {
+handle_connection() {
+    local request_line method path version header_line auth_header="" content_length=0 body=""
+
+    if ! IFS= read -r request_line; then
+        return
+    fi
+    request_line=${request_line%$'\r'}
+    log "Incoming request: $request_line"
+
+    IFS=' ' read -r method path version <<< "$request_line"
+
+    while IFS= read -r header_line; do
+        header_line=${header_line%$'\r'}
+        [[ -z "$header_line" ]] && break
+        case "$header_line" in
+            [Aa]uthorization:*)
+                auth_header="$header_line"
+                ;;
+            [Cc]ontent-[Ll]ength:*)
+                content_length=$(printf '%s' "$header_line" | awk -F': *' 'tolower($1)=="content-length"{print $2}' | tr -d $'\r\n')
+                ;;
+        esac
+    done
+
+    content_length=${content_length:-0}
+
+    if (( content_length > 0 )); then
+        body=$(dd bs=1 count="$content_length" 2>/dev/null || printf '')
+    fi
+
+    local response
+    response=$(handle_http_request "${method:-}" "${path:-/}" "$auth_header" "$body")
+    printf '%s' "$response"
+}
+
+start_server() {
     log "Starting ExpressVPN control server on $CONTROL_IP:$CONTROL_PORT"
-    
-    # Start netcat server with proper error handling
+
+    local exec_cmd
+    printf -v exec_cmd 'env AUTH_CONFIG=%q CONTROL_PORT=%q CONTROL_IP=%q /expressvpn/control-server.sh --handle' \
+        "$AUTH_CONFIG" "$CONTROL_PORT" "$CONTROL_IP"
+
+    local listen_addr="TCP-LISTEN:${CONTROL_PORT},reuseaddr,fork"
+    if [[ "$CONTROL_IP" != "0.0.0.0" ]]; then
+        listen_addr+=",bind=${CONTROL_IP}"
+    fi
+
     while true; do
-        if ! nc -l -p "$CONTROL_PORT" -k 2>/dev/null | while read -r line; do
-            if [[ -n "$line" ]]; then
-                local request_info
-                if request_info=$(parse_request 2>/dev/null); then
-                    handle_request "$request_info"
-                fi
-            fi
-        done; then
-            log "Control server connection closed, restarting..."
+        if ! socat -T30 "${listen_addr}" EXEC:"${exec_cmd}",pipes >/dev/null 2>&1; then
+            log "socat terminated with error, retrying in 1s"
             sleep 1
-        else
-            log "Control server error, restarting..."
-            sleep 5
         fi
     done
 }
 
-# Handle signals
+if [[ "${1:-}" == "--handle" ]]; then
+    handle_connection
+    exit 0
+fi
+
 trap 'log "Shutting down control server"; exit 0' INT TERM
 
-main "$@"
+start_server

@@ -4,21 +4,27 @@ Container-based on [polkaned/expressvpn](https://github.com/polkaned/dockerfiles
 
 ## Project Structure
 
-- `files/` - Core container scripts, configuration files, and sample config
-- `control server/` - HTTP control server testing and demonstration tools
+- `files/` - Core container scripts, configuration files, and control server implementation
+  - `config.toml` - Active authentication configuration for control server
+  - `config.toml.example` - Sample configuration file with examples for all auth types
+  - `control-server.sh` - HTTP control server implementation
+  - `start.sh` - Container startup script
+  - `healthcheck.sh` - Health check script
+  - `activate.exp` - ExpressVPN activation script
+  - `uname.sh` - Kernel version check script
 - `Dockerfile` - Container build configuration
 - `expressbuild.sh` - Build script for multiple platforms and distributions
 
 ## FEATURES
 
 - **Latest Libraries**: All system packages are upgraded to their newest versions during build for enhanced security and compatibility
-- **Multi-Distribution Support**: Supports both `debian trixie-slim` (default) and `debian bullseye-slim` distributions
+- **Multi-Distribution Support**: Supports both `debian bullseye-slim` (default) and `debian trixie-slim` distributions
 - **Automatic Package Updates**: Built-in `apt-get upgrade` ensures the latest security patches and bug fixes
 
 ## TAGS
 
-Latest tag is based on `debian trixie-slim`.
-It is possible to use `debian bullseye-slim` base with `-bullseye` tags.
+Latest tag is based on `debian bullseye-slim`.
+It is possible to use `debian trixie-slim` base with `-trixie` tags.
 Numbers in the tag corresponds to ExpressVPN version.
 
 ## PROTOCOL AND CIPHER
@@ -96,9 +102,23 @@ HTTP API for controlling ExpressVPN container remotely
 | CONTROL_SERVER|Enable/disable HTTP control server|off|
 | CONTROL_IP|Control server IP|0.0.0.0|
 | CONTROL_PORT|Control server port|8000|
+| CONTROL_AUTH_TYPE|Auth mode when no config file is mounted (`basic`, `api_key`, `none`)|""|
+| CONTROL_AUTH_USER|Username for basic auth (requires `CONTROL_AUTH_TYPE=basic`)|""|
+| CONTROL_AUTH_PASSWORD|Password for basic auth (requires `CONTROL_AUTH_TYPE=basic`)|""|
+| CONTROL_API_KEY|API key for bearer auth (`CONTROL_AUTH_TYPE=api_key`)|""|
+| CONTROL_AUTH_ROUTES|Comma-separated list of allowed routes for env role (default `*`)|"*"|
+| CONTROL_AUTH_NAME|Identifier for the env-provided role|env-role|
 
 ### Authentication
-The control server supports authentication via a configuration file. Create a `config.toml` file and mount it to `/expressvpn/auth/config.toml`. A sample configuration file is available in the `files/` directory.
+The control server supports authentication via a configuration file. Create a `config.toml` file and mount it to `/expressvpn/config.toml`. A sample configuration is available at `files/config.toml.example`, and additional examples live under `control server/example/`.
+
+```bash
+# Create a config from the example and edit it
+cp files/config.toml.example config.toml
+$EDITOR config.toml
+```
+
+Alternatively, you can provide a single role entirely via environment variables by setting the `CONTROL_AUTH_*` options described above—handy when credentials are injected by your orchestrator.
 
 #### Supported Authentication Types
 
@@ -142,7 +162,7 @@ auth = "none"
 ```
 
 **4. No Authentication (Legacy - No Config File)**
-- If no `config.toml` file is mounted, authentication is disabled
+- If no `config.toml` file is mounted and no `CONTROL_AUTH_*` variables are set, authentication is disabled
 - All endpoints are accessible without credentials
 - **Warning**: Only use this in trusted environments
 
@@ -194,7 +214,7 @@ password = "readonly123"
 - `GET /v1/servers` - List available servers
 - `GET /v1/dns` - Get DNS configuration information
 - `GET /v1/ip` - Get public IP information and location
-- `GET /v1/dnsleak` - Run DNS leak test using macvk/dnsleaktest
+- `GET /v1/dnsleak` - Run DNS leak test using macvk/dnsleaktest (requires `iputils-ping` inside the container)
 - `POST /v1/connect` - Connect to a specific server (requires JSON body: `{"server": "server_name"}`)
 - `POST /v1/disconnect` - Disconnect from VPN
 - `GET /v1/health` - Health check endpoint
@@ -261,31 +281,21 @@ curl http://localhost:8000/v1/ip
 curl http://localhost:8000/v1/dnsleak
 ```
 
-### Testing and Demo Tools
+### Testing the Control Server
 
-The project contains testing and demonstration tools:
+You can test the control server using curl commands. The server supports multiple authentication methods as configured in your `config.toml` file.
 
-- **`files/config.toml.example`** - Sample configuration file for authentication
-- **`control server/test-control-server.sh`** - Comprehensive test script for all API endpoints
-- **`control server/demo-new-endpoints.sh`** - Demonstration script for DNS, IP, and DNS leak test endpoints
-
-To test the control server:
+**Example test commands:**
 
 ```bash
-# Run comprehensive tests with basic authentication (default)
-./control\ server/test-control-server.sh
+# Test with basic authentication (if configured)
+curl -u admin:changeme http://localhost:8000/v1/status
 
-# Run tests with API key authentication
-AUTH_TYPE=api_key API_KEY=your-secret-api-key ./control\ server/test-control-server.sh
+# Test with API key authentication (if configured)
+curl -H "Authorization: Bearer your-secret-api-key-here" http://localhost:8000/v1/status
 
-# Run tests with no authentication
-AUTH_TYPE=none ./control\ server/test-control-server.sh
-
-# Demo new endpoints with basic authentication
-./control\ server/demo-new-endpoints.sh
-
-# Demo with API key authentication
-AUTH_TYPE=api_key API_KEY=your-secret-api-key ./control\ server/demo-new-endpoints.sh
+# Test without authentication (if auth = "none" or no config file)
+curl http://localhost:8000/v1/status
 ```
 
 ### Response Examples
@@ -326,11 +336,11 @@ AUTH_TYPE=api_key API_KEY=your-secret-api-key ./control\ server/demo-new-endpoin
 To build the container locally with the latest changes:
 
 ```bash
-# Build with default trixie-slim distribution
+# Build with default bullseye-slim distribution
 ./expressbuild.sh 3.61.0.12 test-repo
 
-# Build with bullseye-slim distribution
-./expressbuild.sh 3.61.0.12 test-repo bullseye-slim
+# Build with trixie-slim distribution
+./expressbuild.sh 3.61.0.12 test-repo trixie-slim
 
 # Build matrix (both distributions)
 ./expressbuild.sh 3.61.0.12 test-repo matrix
@@ -373,7 +383,12 @@ To build the container locally with the latest changes:
     --env=CONTROL_SERVER=off \ #optional
     --env=CONTROL_IP=0.0.0.0 \ #optional
     --env=CONTROL_PORT=8000 \ #optional
-    --volume ./files/config.toml:/expressvpn/auth/config.toml \ #optional for control server auth
+    --env=CONTROL_AUTH_TYPE=basic \ #optional env-based auth configuration
+    --env=CONTROL_AUTH_USER=admin \ #optional if CONTROL_AUTH_TYPE=basic
+    --env=CONTROL_AUTH_PASSWORD=changeme \ #optional if CONTROL_AUTH_TYPE=basic
+    --env=CONTROL_API_KEY=sk-1234567890abcdef \ #optional if CONTROL_AUTH_TYPE=api_key
+    --env=CONTROL_AUTH_ROUTES="GET /v1/status,GET /v1/ip" \ #optional comma-separated routes
+    --volume ./config.toml:/expressvpn/config.toml \ # optional when using file-based auth
     misioslav/expressvpn \
     /bin/bash
 ```
@@ -433,8 +448,14 @@ services:
       - CONTROL_SERVER=off #optional set default to off see control server section for more information
       - CONTROL_IP=0.0.0.0 #optional set default to 0.0.0.0
       - CONTROL_PORT=8000 #optional set default to 8000
+      - CONTROL_AUTH_TYPE=basic #optional if you prefer env-driven auth
+      - CONTROL_AUTH_USER=admin #optional when CONTROL_AUTH_TYPE=basic
+      - CONTROL_AUTH_PASSWORD=changeme #optional when CONTROL_AUTH_TYPE=basic
+      - CONTROL_API_KEY=sk-1234567890abcdef #optional when CONTROL_AUTH_TYPE=api_key
+      - CONTROL_AUTH_ROUTES=GET /v1/status,GET /v1/ip #optional comma-separated list
+      - CONTROL_AUTH_NAME=env-role #optional label for env role
     volumes:
-      - ./files/config.toml:/expressvpn/auth/config.toml # optional for control server auth
+      - ./config.toml:/expressvpn/config.toml # optional when using file-based auth
     cap_add:
       - NET_ADMIN
     devices:
