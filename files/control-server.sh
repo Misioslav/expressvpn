@@ -180,13 +180,6 @@ check_auth() {
     method_upper=$(uppercase "$method")
     local route="${method_upper} ${path}"
 
-    if (( ROLE_COUNT < 0 )); then
-        AUTH_FAILURE_STATUS="503 Service Unavailable"
-        AUTH_FAILURE_MESSAGE="Authentication configuration invalid"
-        AUTH_FAILURE_HEADER=""
-        return 1
-    fi
-
     if [[ "$ROLE_COUNT" -eq 0 ]]; then
         return 0
     fi
@@ -339,7 +332,8 @@ get_public_ip() {
 
 run_dns_leak_test() {
     local raw_result
-    if ! raw_result=$(bash /expressvpn/dnsleaktest.sh 2>&1); then
+    local timeout_secs="${DNS_LEAK_TIMEOUT:-30}"
+    if ! raw_result=$(timeout -k 5 "$timeout_secs" bash /expressvpn/dnsleaktest.sh 2>&1); then
         jq -n --arg error "DNS leak test failed" \
               --arg raw "$raw_result" \
               --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \

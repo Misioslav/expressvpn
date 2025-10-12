@@ -4,6 +4,7 @@ FROM debian:${DISTRIBUTION} AS microsocks-builder
 
 RUN set -eux; \
     apt-get update; \
+    apt-get upgrade -y; \
     apt-get install -y --no-install-recommends build-essential git ca-certificates; \
     git clone https://github.com/rofl0r/microsocks.git /tmp/microsocks; \
     make -C /tmp/microsocks; \
@@ -30,13 +31,7 @@ ENV CODE="code" \
     SOCKS_WHITELIST="" \
     CONTROL_SERVER="off" \
     CONTROL_PORT="8000" \
-    CONTROL_IP="0.0.0.0" \
-    CONTROL_AUTH_TYPE="" \
-    CONTROL_AUTH_NAME="env-role" \
-    CONTROL_AUTH_USER="" \
-    CONTROL_AUTH_PASSWORD="" \
-    CONTROL_API_KEY="" \
-    CONTROL_AUTH_ROUTES="*"
+    CONTROL_IP="0.0.0.0"
 
 ARG NUM
 ARG PLATFORM
@@ -48,6 +43,7 @@ COPY --from=microsocks-builder /tmp/microsocks/microsocks /usr/local/bin/microso
 RUN set -eux; \
     export DEBIAN_FRONTEND=noninteractive; \
     apt-get update; \
+    apt-get upgrade -y; \
     apt-get install -y --no-install-recommends \
         expect \
         curl \
@@ -56,11 +52,14 @@ RUN set -eux; \
         jq \
         iptables \
         iputils-ping \
-        python3 \
-        socat; \
+        net-tools \
+        netcat-openbsd \
+        socat \
+        procps; \
     if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
         dpkg --add-architecture armhf; \
         apt-get update; \
+        apt-get upgrade -y; \
         apt-get install -y --no-install-recommends \
             libc6:armhf \
             libstdc++6:armhf \

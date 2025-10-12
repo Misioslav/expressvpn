@@ -22,7 +22,7 @@ fi
 id=$(curl --silent "https://${API_DOMAIN}/id")
 
 for i in $(seq 1 10); do
-    ping -c 1 "${i}.${id}.${API_DOMAIN}" >/dev/null 2>&1 || true
+    ping -c 1 -W 1 "${i}.${id}.${API_DOMAIN}" >/dev/null 2>&1 || true
 done
 
 curl --silent "https://${API_DOMAIN}/dnsleak/test/${id}?json"

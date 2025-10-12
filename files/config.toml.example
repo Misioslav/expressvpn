@@ -1,50 +1,31 @@
 # ExpressVPN Control Server Authentication Configuration
-# Copy this file to config.toml and customize the credentials.
-# Multiple roles are supported; each role can protect a subset of routes.
+# Copy this file to config.toml and customize the credentials
 
-# -----------------------------------------------------------------------------
-# BASIC AUTH ROLE (username/password)
-# -----------------------------------------------------------------------------
+# Basic Authentication Example
 [[roles]]
 name = "admin"
+routes = ["GET /v1/status", "GET /v1/servers", "GET /v1/dns", "GET /v1/ip", "GET /v1/dnsleak", "POST /v1/connect", "POST /v1/disconnect", "GET /v1/health"]
 auth = "basic"
 username = "admin"
 password = "changeme"
-routes = [
-  "GET /v1/status",
-  "GET /v1/servers",
-  "GET /v1/dns",
-  "GET /v1/ip",
-  "GET /v1/dnsleak",
-  "GET /v1/health",
-  "POST /v1/connect",
-  "POST /v1/disconnect"
-]
 
-# -----------------------------------------------------------------------------
-# API KEY ROLE (Bearer token header)
-# -----------------------------------------------------------------------------
+# API Key Authentication Example
 # [[roles]]
-# name = "automation"
+# name = "api_user"
+# routes = ["GET /v1/status", "GET /v1/servers", "GET /v1/dns", "GET /v1/ip", "GET /v1/dnsleak", "POST /v1/connect", "POST /v1/disconnect", "GET /v1/health"]
 # auth = "api_key"
-# api_key = "sk-1234567890abcdef"
-# routes = [
-#   "GET /v1/status",
-#   "GET /v1/ip",
-#   "GET /v1/health"
-# ]
+# api_key = "your-secret-api-key-here"
 
-# -----------------------------------------------------------------------------
-# OPEN ROLE (no authentication) - USE FOR TESTING ONLY
-# -----------------------------------------------------------------------------
+# Read-only role with basic auth
 # [[roles]]
-# name = "internal-monitoring"
-# auth = "none"
-# routes = [
-#   "GET /v1/health"
-# ]
+# name = "readonly"
+# routes = ["GET /v1/status", "GET /v1/servers", "GET /v1/dns", "GET /v1/ip", "GET /v1/dnsleak", "GET /v1/health"]
+# auth = "basic"
+# username = "readonly"
+# password = "readonly123"
 
-# Notes:
-# - Omit the routes list or use "*" to allow all endpoints for a role.
-# - The first matching role with valid credentials wins.
-# - Requests to routes not listed in any role return HTTP 403.
+# No Authentication (open access) - USE WITH CAUTION
+# [[roles]]
+# name = "open_access"
+# routes = ["GET /v1/status", "GET /v1/servers", "GET /v1/dns", "GET /v1/ip", "GET /v1/dnsleak", "POST /v1/connect", "POST /v1/disconnect", "GET /v1/health"]
+# auth = "none"

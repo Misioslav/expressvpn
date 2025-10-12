@@ -22,6 +22,17 @@ auto_update() {
     rm -rf /var/lib/apt/lists/* /var/log/*.log
 }
 
+restore_resolver() {
+    local resolv="/etc/resolv.conf"
+
+    if [[ -f "$resolv" ]]; then
+        cp "$resolv" "${resolv}.bak"
+        umount "$resolv" &>/dev/null || true
+        cp "${resolv}.bak" "$resolv"
+        rm -f "${resolv}.bak"
+    fi
+}
+
 restart_service() {
     if sed -i 's/DAEMON_ARGS=.*/DAEMON_ARGS=""/' /etc/init.d/expressvpn; then
         :
@@ -120,6 +131,7 @@ start_control_server() {
 
 main() {
     auto_update
+    restore_resolver
     restart_service
     activate_account
     configure_preferences
