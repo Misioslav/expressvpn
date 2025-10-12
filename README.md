@@ -106,7 +106,7 @@ HTTP API for controlling ExpressVPN container remotely
 | CONTROL_AUTH_USER|Username for basic auth (requires `CONTROL_AUTH_TYPE=basic`)|""|
 | CONTROL_AUTH_PASSWORD|Password for basic auth (requires `CONTROL_AUTH_TYPE=basic`)|""|
 | CONTROL_API_KEY|API key for bearer auth (`CONTROL_AUTH_TYPE=api_key`)|""|
-| CONTROL_AUTH_ROUTES|Comma-separated list of allowed routes for env role (default `*`)|"*"|
+| CONTROL_AUTH_ROUTES|Comma-separated list of allowed routes for env role, or "all" for all routes (default `*`)|"*"|
 | CONTROL_AUTH_NAME|Identifier for the env-provided role|env-role|
 
 ### Authentication
@@ -119,6 +119,31 @@ $EDITOR config.toml
 ```
 
 Alternatively, you can provide a single role entirely via environment variables by setting the `CONTROL_AUTH_*` options described above—handy when credentials are injected by your orchestrator.
+
+#### CONTROL_AUTH_ROUTES Configuration
+
+The `CONTROL_AUTH_ROUTES` environment variable supports multiple formats:
+
+**1. "all" - Access to all available routes:**
+```bash
+CONTROL_AUTH_ROUTES=all
+```
+This grants access to all available API endpoints:
+- `GET /v1/status`
+- `GET /v1/ip`
+- `GET /v1/dns`
+- `GET /v1/dnsleak`
+- `GET /v1/servers`
+- `GET /v1/health`
+- `POST /v1/connect`
+- `POST /v1/disconnect`
+
+**2. Comma-separated list of specific routes:**
+```bash
+CONTROL_AUTH_ROUTES="GET /v1/status,GET /v1/ip,POST /v1/connect"
+```
+
+**Note:** When a `config.toml` file is mounted, it takes precedence over environment variable authentication settings.
 
 #### Supported Authentication Types
 
@@ -300,7 +325,7 @@ To build the container locally with the latest changes:
     --env=CONTROL_AUTH_USER=admin \ #optional if CONTROL_AUTH_TYPE=basic
     --env=CONTROL_AUTH_PASSWORD=changeme \ #optional if CONTROL_AUTH_TYPE=basic
     --env=CONTROL_API_KEY=sk-1234567890abcdef \ #optional if CONTROL_AUTH_TYPE=api_key
-    --env=CONTROL_AUTH_ROUTES="GET /v1/status,GET /v1/ip" \ #optional comma-separated routes
+    --env=CONTROL_AUTH_ROUTES="all" \ #optional: "all", comma-separated routes, or "*"
     --volume ./config.toml:/expressvpn/config.toml \ # optional when using file-based auth
     misioslav/expressvpn \
     /bin/bash
@@ -365,7 +390,7 @@ services:
       - CONTROL_AUTH_USER=admin #optional when CONTROL_AUTH_TYPE=basic
       - CONTROL_AUTH_PASSWORD=changeme #optional when CONTROL_AUTH_TYPE=basic
       - CONTROL_API_KEY=sk-1234567890abcdef #optional when CONTROL_AUTH_TYPE=api_key
-      - CONTROL_AUTH_ROUTES=GET /v1/status,GET /v1/ip #optional comma-separated list
+      - CONTROL_AUTH_ROUTES=all #optional: "all", comma-separated routes, or "*"
       - CONTROL_AUTH_NAME=env-role #optional label for env role
     volumes:
       - ./config.toml:/expressvpn/config.toml # optional when using file-based auth

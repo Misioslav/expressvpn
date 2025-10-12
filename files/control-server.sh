@@ -62,19 +62,45 @@ load_auth_config() {
         if [[ -n "$env_auth" ]]; then
             local routes_input="${CONTROL_AUTH_ROUTES:-*}"
             local formatted_routes=""
-            IFS=',' read -ra route_parts <<< "$routes_input"
-            if (( ${#route_parts[@]} == 0 )); then
-                route_parts=('*')
-            fi
-            for route in "${route_parts[@]}"; do
-                route="${route#${route%%[![:space:]]*}}"
-                route="${route%${route##*[![:space:]]}}"
-                [[ -z "$route" ]] && continue
-                if [[ -n "$formatted_routes" ]]; then
-                    formatted_routes+=$'\n'
+            
+            # Define all available routes for the "all" option
+            local all_routes=(
+                "GET /v1/status"
+                "GET /v1/ip"
+                "GET /v1/dns"
+                "GET /v1/dnsleak"
+                "GET /v1/servers"
+                "GET /v1/health"
+                "POST /v1/connect"
+                "POST /v1/disconnect"
+            )
+            
+            # Handle "all" option or parse routes
+            if [[ "$routes_input" == "all" ]]; then
+                # Use all available routes
+                for route in "${all_routes[@]}"; do
+                    if [[ -n "$formatted_routes" ]]; then
+                        formatted_routes+=$'\n'
+                    fi
+                    formatted_routes+="$route"
+                done
+            else
+                # Parse comma-separated routes (backward compatibility)
+                IFS=',' read -ra route_parts <<< "$routes_input"
+                if (( ${#route_parts[@]} == 0 )); then
+                    route_parts=('*')
                 fi
-                formatted_routes+="$route"
-            done
+                for route in "${route_parts[@]}"; do
+                    route="${route#${route%%[![:space:]]*}}"
+                    route="${route%${route##*[![:space:]]}}"
+                    [[ -z "$route" ]] && continue
+                    if [[ -n "$formatted_routes" ]]; then
+                        formatted_routes+=$'\n'
+                    fi
+                    formatted_routes+="$route"
+                done
+            fi
+            
             [[ -z "$formatted_routes" ]] && formatted_routes="*"
 
             ROLE_NAMES+=("${CONTROL_AUTH_NAME:-env-role}")
