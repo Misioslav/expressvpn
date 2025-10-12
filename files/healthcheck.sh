@@ -3,13 +3,29 @@ set -euo pipefail
 
 resolve_check_ip() {
     if [[ -n ${DDNS:-} ]]; then
-        local resolved
-        resolved=$(getent ahostsv4 "$DDNS" 2>/dev/null | awk 'NR==1 { print $1 }') || true
-        if [[ -z $resolved ]]; then
+        local -a resolved=()
+        local -A seen=()
+        # Collect IPv4 entries first to match the IPv4-only ExpressVPN lookup
+        while IFS= read -r ip; do
+            if [[ -n $ip && -z ${seen["$ip"]:-} ]]; then
+                resolved+=("$ip")
+                seen["$ip"]=1
+            fi
+        done < <(getent ahostsv4 "$DDNS" 2>/dev/null | awk '{ print $1 }' || true)
+
+        if [[ ${#resolved[@]} -eq 0 ]]; then
             # Fallback to any family (likely IPv6) so we still perform the check
-            resolved=$(getent hosts "$DDNS" 2>/dev/null | awk 'NR==1 { print $1 }') || true
+            while IFS= read -r ip; do
+                if [[ -n $ip && -z ${seen["$ip"]:-} ]]; then
+                    resolved+=("$ip")
+                    seen["$ip"]=1
+                fi
+            done < <(getent hosts "$DDNS" 2>/dev/null | awk '{ print $1 }' || true)
         fi
-        [[ -n $resolved ]] && echo "$resolved"
+
+        if [[ ${#resolved[@]} -gt 0 ]]; then
+            printf '%s\n' "${resolved[@]}"
+        fi
         return
     fi
 
@@ -26,10 +42,12 @@ notify_healthcheck() {
 }
 
 main() {
-    local target_ip
-    target_ip=$(resolve_check_ip || true)
+    local -a target_ips=()
+    while IFS= read -r ip; do
+        [[ -n $ip ]] && target_ips+=("$ip")
+    done < <(resolve_check_ip || true)
 
-    [[ -z $target_ip ]] && exit 0
+    [[ ${#target_ips[@]} -eq 0 ]] && exit 0
 
     local express_ip
     if ! express_ip=$(curl -fsSL --max-time 10 -H "Authorization: Bearer ${BEARER:-}" "https://ipinfo.io" | jq -r '.ip'); then
@@ -42,7 +60,15 @@ main() {
         exit 1
     fi
 
-    if [[ "$target_ip" == "$express_ip" ]]; then
+    local match=false
+    for ip in "${target_ips[@]}"; do
+        if [[ "$ip" == "$express_ip" ]]; then
+            match=true
+            break
+        fi
+    done
+
+    if [[ $match == true ]]; then
         notify_healthcheck "/fail" || true
         expressvpn disconnect || true
         expressvpn connect "${SERVER:-smart}" || true
