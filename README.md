@@ -102,12 +102,7 @@ HTTP API for controlling ExpressVPN container remotely
 | CONTROL_SERVER|Enable/disable HTTP control server|off|
 | CONTROL_IP|Control server IP|0.0.0.0|
 | CONTROL_PORT|Control server port|8000|
-| CONTROL_AUTH_TYPE|Auth mode when no config file is mounted (`basic`, `api_key`, `none`)|""|
-| CONTROL_AUTH_USER|Username for basic auth (requires `CONTROL_AUTH_TYPE=basic`)|""|
-| CONTROL_AUTH_PASSWORD|Password for basic auth (requires `CONTROL_AUTH_TYPE=basic`)|""|
-| CONTROL_API_KEY|API key for bearer auth (`CONTROL_AUTH_TYPE=api_key`)|""|
-| CONTROL_AUTH_ROUTES|Comma-separated list of allowed routes for env role, or "all" for all routes (default `*`)|"*"|
-| CONTROL_AUTH_NAME|Identifier for the env-provided role|env-role|
+
 
 ### Authentication
 The control server supports authentication via a configuration file. Create a `config.toml` file and mount it to `/expressvpn/config.toml`. A sample configuration is available at `files/config.toml.example`, and additional examples live under `control server/example/`.
@@ -117,33 +112,6 @@ The control server supports authentication via a configuration file. Create a `c
 cp files/config.toml.example config.toml
 $EDITOR config.toml
 ```
-
-Alternatively, you can provide a single role entirely via environment variables by setting the `CONTROL_AUTH_*` options described above—handy when credentials are injected by your orchestrator.
-
-#### CONTROL_AUTH_ROUTES Configuration
-
-The `CONTROL_AUTH_ROUTES` environment variable supports multiple formats:
-
-**1. "all" - Access to all available routes:**
-```bash
-CONTROL_AUTH_ROUTES=all
-```
-This grants access to all available API endpoints:
-- `GET /v1/status`
-- `GET /v1/ip`
-- `GET /v1/dns`
-- `GET /v1/dnsleak`
-- `GET /v1/servers`
-- `GET /v1/health`
-- `POST /v1/connect`
-- `POST /v1/disconnect`
-
-**2. Comma-separated list of specific routes:**
-```bash
-CONTROL_AUTH_ROUTES="GET /v1/status,GET /v1/ip,POST /v1/connect"
-```
-
-**Note:** When a `config.toml` file is mounted, it takes precedence over environment variable authentication settings.
 
 #### Supported Authentication Types
 

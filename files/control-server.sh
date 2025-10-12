@@ -180,6 +180,13 @@ check_auth() {
     method_upper=$(uppercase "$method")
     local route="${method_upper} ${path}"
 
+    if (( ROLE_COUNT < 0 )); then
+        AUTH_FAILURE_STATUS="503 Service Unavailable"
+        AUTH_FAILURE_MESSAGE="Authentication configuration invalid"
+        AUTH_FAILURE_HEADER=""
+        return 1
+    fi
+
     if [[ "$ROLE_COUNT" -eq 0 ]]; then
         return 0
     fi
