@@ -1,0 +1,11 @@
+# Example Prometheus scrape configuration for the ExpressVPN metrics exporter.
+# Update 'expressvpn-host' to the hostname or IP where the container exposes port 9797.
+scrape_configs:
+  - job_name: expressvpn
+    scrape_interval: 15s
+    metrics_path: /metrics.cgi
+    static_configs:
+      - targets:
+          - expressvpn-host:9797
+# When METRICS_IPINFO is enabled and an IPinfo token is provided, the exporter emits
+# expressvpn_server_location_info with geolocation labels for additional dashboard context.

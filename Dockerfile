@@ -31,7 +31,11 @@ ENV CODE="code" \
     SOCKS_WHITELIST="" \
     CONTROL_SERVER="off" \
     CONTROL_PORT="8000" \
-    CONTROL_IP="0.0.0.0"
+    CONTROL_IP="0.0.0.0" \
+    METRICS_PROMETHEUS="off" \
+    METRICS_PORT="9797" \
+    METRICS_PATH="/metrics.cgi" \
+    METRICS_VPN_IF=""
 
 ARG NUM
 ARG PLATFORM
@@ -55,7 +59,8 @@ RUN set -eux; \
         net-tools \
         netcat-openbsd \
         socat \
-        procps; \
+        procps \
+        busybox-static; \
     if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
         dpkg --add-architecture armhf; \
         apt-get update; \

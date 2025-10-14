@@ -120,6 +120,40 @@ start_socks_proxy() {
     microsocks "${args[@]}" &
 }
 
+start_metrics_exporter() {
+    if [[ ${METRICS_PROMETHEUS:-off} != "on" ]]; then
+        return
+    fi
+
+    local port="${METRICS_PORT:-9797}"
+    local path="${METRICS_PATH:-/metrics.cgi}"
+
+    if [[ "${path}" != /* ]]; then
+        log "METRICS_PATH must be absolute (received: ${path})"
+        exit 1
+    fi
+
+    if [[ "${path}" != *.cgi ]]; then
+        log "METRICS_PATH must end with .cgi (received: ${path})"
+        exit 1
+    fi
+
+    local dest="/expressvpn/www${path}"
+    local dest_dir
+    dest_dir="$(dirname "$dest")"
+
+    mkdir -p "${dest_dir}"
+    cp /expressvpn/metrics.cgi "${dest}"
+    chmod +x "${dest}"
+
+    cat <<'EOF' >/expressvpn/www/httpd.conf
+*.cgi:/bin/bash
+EOF
+
+    log "Starting metrics exporter on port ${port} path ${path}"
+    busybox httpd -f -p "${port}" -h /expressvpn/www -c /expressvpn/www/httpd.conf &
+}
+
 start_control_server() {
     if [[ ${CONTROL_SERVER:-off} != "on" ]]; then
         return
@@ -134,6 +168,7 @@ main() {
     restore_resolver
     restart_service
     activate_account
+    start_metrics_exporter
     configure_preferences
     apply_dns_whitelist
     start_socks_proxy

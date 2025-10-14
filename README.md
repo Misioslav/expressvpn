@@ -14,6 +14,7 @@ Container-based on [polkaned/expressvpn](https://github.com/polkaned/dockerfiles
 - **Latest Libraries**: All system packages are upgraded to their newest versions during build for enhanced security and compatibility
 - **Multi-Distribution Support**: Supports both `debian trixie-slim` (default) and `debian bullseye-slim` distributions
 - **Automatic Package Updates**: Built-in `apt-get upgrade` ensures the latest security patches and bug fixes
+- **Optional Prometheus Metrics**: Expose VPN connection status and interface statistics on demand for observability
 
 ## TAGS
 
@@ -55,14 +56,36 @@ It is now possible to set env variable AUTO_UPDATE with value "on" for the conta
 New env is available. It can be used like in the examples below and it is a comma seperated list of dns servers you wish to use and whitelist via iptables. Don't use it or leave empty for default behavior.
 Added by [phynias](https://github.com/phynias), thank you!
 
+## PROMETHEUS METRICS (OPTIONAL)
+
+You can expose Prometheus metrics with VPN connection status and interface counters by enabling the dedicated exporter:
+
+```bash
+docker run \
+  --env=CODE=code \
+  --env=SERVER=smart \
+  --env=METRICS_PROMETHEUS=on \
+  --env=METRICS_PORT=9797 \
+  --env=METRICS_PATH=/metrics.cgi \
+  --publish 9797:9797 \
+  --cap-add=NET_ADMIN \
+  --device=/dev/net/tun \
+  --privileged \
+  misioslav/expressvpn
+```
+
+- Default metrics target: `http://<host>:9797/metrics.cgi`
+- Metrics include `expressvpn_connection_status`, `expressvpn_connection_info`, `expressvpn_vpn_interface_info`, and rx/tx byte/packet counters.
+- Example scrape config (`examples/prometheus-scrape-example.yml`) and Grafana dashboard (`examples/grafana-expressvpn-dashboard.json`) are provided.
+- Refer to the example Grafana dashboard to visualize connection state and throughput.
+
 ## HEALTHCHECK
 Healthcheck is performed once every 2min.
 You can also add `--env=DDNS=domain` or `--env=IP=yourIP` to docker run command or in the environment section of compose in order to perform healthcheck which will be checking if data from env variable DDNS or IP is different than ExpressVPN's IP.
 If you won't set any of them, by default healthcheck will return status `healthy`.
 Also, there is a possibility to add `--env=BEAERER=access_token` from [ipinfo.io](https://ipinfo.io/) if you have an account there (free plan gives you 50k requests per month).
-
 Additionally, healthchecks.io support has been added and you can add the id of the healthchecks link to the `HEALTHCHECK` variable in docker configs.
-DDNS or IP must be set for ipinfo.io and healthcheck.io to work. 
+DDNS or IP must be set for ipinfo.io and healthcheck.io to work.
 
 ## DNS LEAKING CHECK
 In order to avoid DNS leaking, you have to replace `resolv.conf` on other containers that uses this one to connect to the network with the `resolv.conf` from expressvpn after it connects.
@@ -318,8 +341,8 @@ services:
       - SERVER=smart # By default container will connect to smart location, list of available locations you can find below
       - DDNS=yourDdnsDomain # optional
       - IP=yourStaticIp # optional - won't work if DDNS is setup
-      #### These will only work if DDNS or IP are set. ####
       - BEAERER=ipInfoAccessToken # optional can be taken from ipinfo.io
+      #### These will only work if DDNS or IP are set. ####
       - HEALTHCHECK=healthchecks.ioId # optional can be taken from healthchecks.io
       #####################################################
       - NETWORK=off/on #optional and set to on by default (This is the killswitch)
