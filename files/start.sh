@@ -151,7 +151,17 @@ start_metrics_exporter() {
 EOF
 
     log "Starting metrics exporter on port ${port} path ${path}"
-    busybox httpd -f -p "${port}" -h /expressvpn/www -c /expressvpn/www/httpd.conf &
+    local err_log="/tmp/metrics-httpd.log"
+    rm -f "${err_log}"
+    busybox httpd -f -p "${port}" -h /expressvpn/www -c /expressvpn/www/httpd.conf >"${err_log}" 2>&1 &
+    local httpd_pid=$!
+    sleep 1
+    if ! kill -0 "${httpd_pid}" 2>/dev/null; then
+        log "Metrics exporter failed to start (see ${err_log}): $(cat "${err_log}" 2>/dev/null)"
+        local unpriv_port_start
+        unpriv_port_start=$(cat /proc/sys/net/ipv4/ip_unprivileged_port_start 2>/dev/null || echo 1024)
+        log "Hint: ensure METRICS_PORT is >= ${unpriv_port_start} or run container with CAP_NET_BIND_SERVICE."
+    fi
 }
 
 start_control_server() {

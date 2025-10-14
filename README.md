@@ -74,7 +74,7 @@ Enable ExpressVPN package upgrades on container restart with `AUTO_UPDATE=on`. T
 `WHITELIST_DNS=comma,separated,ips` creates iptables exceptions allowing specified DNS servers outside the VPN tunnel.
 
 ### Prometheus Metrics (Optional)
-Set `METRICS_PROMETHEUS=on` to serve metrics via BusyBox `httpd` on `PORT:9797` and path `PATH:/metrics.cgi`. Metrics include:
+Set `METRICS_PROMETHEUS=on` to serve metrics via BusyBox `httpd` on `METRICS_PORT` (default `9797`) and `METRICS_PATH` (default `/metrics.cgi`). Metrics include:
 - `expressvpn_connection_status`
 - `expressvpn_connection_info{server,protocol,cipher,network_lock}`
 - `expressvpn_vpn_interface_info{interface}`
@@ -82,6 +82,7 @@ Set `METRICS_PROMETHEUS=on` to serve metrics via BusyBox `httpd` on `PORT:9797` 
 - `expressvpn_network_rx/tx_packets_total`
 
 Reference configs: `examples/prometheus-scrape-example.yml` and `examples/grafana-expressvpn-dashboard.json`.
+If `httpd` reports `socket: Permission denied`, choose a port above the host's `net.ipv4.ip_unprivileged_port_start` (or add `CAP_NET_BIND_SERVICE`).
 
 ### Healthcheck
 A built-in healthcheck runs every two minutes. You may provide:
