@@ -28,7 +28,11 @@ ENV CODE="code" \
     SOCKS_PASS="" \
     SOCKS_IP="0.0.0.0" \
     SOCKS_PORT="1080" \
-    SOCKS_WHITELIST=""
+    SOCKS_WHITELIST="" \
+    METRICS_PROMETHEUS="off" \
+    METRICS_PORT="9797" \
+    METRICS_PATH="/metrics.cgi" \
+    METRICS_VPN_IF=""
 
 ARG NUM
 ARG PLATFORM
@@ -49,7 +53,8 @@ RUN set -eux; \
         jq \
         iptables \
         iputils-ping \
-        net-tools; \
+        net-tools \
+        busybox-static; \
     if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
         dpkg --add-architecture armhf; \
         apt-get update; \
