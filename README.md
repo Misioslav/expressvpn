@@ -82,7 +82,7 @@ Set `METRICS_PROMETHEUS=on` to serve metrics via BusyBox `httpd` on `METRICS_POR
 - `expressvpn_network_rx/tx_packets_total`
 
 Reference configs: `examples/prometheus-scrape-example.yml` and `examples/grafana-expressvpn-dashboard.json`.
-If `httpd` reports `socket: Permission denied`, choose a port above the host's `net.ipv4.ip_unprivileged_port_start` (or add `CAP_NET_BIND_SERVICE`).
+If `httpd` reports `socket: Permission denied`, choose a port above the host's `net.ipv4.ip_unprivileged_port_start`, add `CAP_NET_BIND_SERVICE`, or run the container with `--security-opt seccomp=unconfined`.
 
 ### Healthcheck
 A built-in healthcheck runs every two minutes. You may provide:
@@ -206,6 +206,8 @@ services:
       - NET_ADMIN
     devices:
       - /dev/net/tun
+    security_opt:
+      - seccomp=unconfined
     command: /bin/bash
     privileged: true
 ```
