@@ -125,7 +125,7 @@ start_metrics_fallback() {
     local path="$2"
     local listen_addr="TCP-LISTEN:${port},reuseaddr,fork"
     local exec_cmd
-    printf -v exec_cmd 'METRICS_EXPECTED_PATH=%q /expressvpn/metrics-server.sh' "$path"
+    printf -v exec_cmd 'env METRICS_EXPECTED_PATH=%q /expressvpn/metrics-server.sh' "$path"
     log "Starting metrics fallback server on port ${port} via socat"
     socat -T30 "${listen_addr}" EXEC:"${exec_cmd}",pipes >>/tmp/metrics-socat.log 2>&1 &
     local socat_pid=$!
