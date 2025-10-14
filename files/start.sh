@@ -160,7 +160,7 @@ EOF
         log "Metrics exporter failed to start (see ${err_log}): $(cat "${err_log}" 2>/dev/null)"
         local unpriv_port_start
         unpriv_port_start=$(cat /proc/sys/net/ipv4/ip_unprivileged_port_start 2>/dev/null || echo 1024)
-        log "Hint: ensure METRICS_PORT is >= ${unpriv_port_start} or run container with CAP_NET_BIND_SERVICE."
+        log "Hint: ensure METRICS_PORT is >= ${unpriv_port_start}, run with CAP_NET_BIND_SERVICE, or start the container with '--security-opt seccomp=unconfined'."
     fi
 }
 
