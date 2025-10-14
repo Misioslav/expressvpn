@@ -1,135 +1,132 @@
 # ExpressVPN
 
-Container-based on [polkaned/expressvpn](https://github.com/polkaned/dockerfiles/tree/master/expressvpn) version. This is my attempt mostly to learn more about docker.
+Containerised ExpressVPN client inspired by [polkaned/expressvpn](https://github.com/polkaned/dockerfiles/tree/master/expressvpn), extended with control and observability tooling for multi-platform deployments.
+
+## Table of Contents
+- [Project Structure](#project-structure)
+- [Features](#features)
+- [Supported Tags](#supported-tags)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+  - [Protocol and Cipher](#protocol-and-cipher)
+  - [Network Lock](#network-lock)
+  - [Auto Update](#auto-update)
+  - [DNS Whitelist](#dns-whitelist)
+  - [Prometheus Metrics (Optional)](#prometheus-metrics-optional)
+  - [Healthcheck](#healthcheck)
+  - [DNS Leak Check](#dns-leak-check)
+  - [SOCKS5 Proxy](#socks5-proxy)
+  - [Control Server](#control-server)
+- [Control Server API](#control-server-api)
+  - [Authentication](#authentication)
+  - [API Endpoints](#api-endpoints)
+  - [Example Usage](#example-usage)
+- [Building](#building)
+- [Docker Compose Example](#docker-compose-example)
+- [Available Servers](#available-servers)
 
 ## Project Structure
+- `Dockerfile` – multi-architecture image build definition.
+- `expressbuild.sh` – helper script for building and publishing multi-platform images.
+- `files/` – container entrypoint scripts, ExpressVPN automation, exporters, and sample configs (e.g. `config.toml.example`).
+- `examples/` – Prometheus scrape configuration and Grafana dashboard templates for observability.
 
-- `files/` - Core container scripts, configuration files, and sample config
-- `control server/` - HTTP control server testing and demonstration tools
-- `Dockerfile` - Container build configuration
-- `expressbuild.sh` - Build script for multiple platforms and distributions
+## Features
+- **Latest libraries** – base image packages upgraded during build for security and compatibility.
+- **Multi-distribution support** – Debian `trixie-slim` (default) and `bullseye-slim` images.
+- **Automatic package updates** – optional ExpressVPN auto-upgrade on container restart.
+- **Prometheus metrics exporter** – opt-in `/metrics.cgi` endpoint for connection state and interface counters.
+- **HTTP control server** – optional API for managing ExpressVPN sessions remotely with configurable auth.
+- **SOCKS5 proxy support** – integrated microsocks with flexible authentication and allowlist options.
 
-## FEATURES
+## Supported Tags
+Latest tags are built from `debian trixie-slim`. Use `-bullseye` suffixed tags to target the alternative base. Version numbers match the bundled ExpressVPN release.
 
-- **Latest Libraries**: All system packages are upgraded to their newest versions during build for enhanced security and compatibility
-- **Multi-Distribution Support**: Supports both `debian trixie-slim` (default) and `debian bullseye-slim` distributions
-- **Automatic Package Updates**: Built-in `apt-get upgrade` ensures the latest security patches and bug fixes
-- **Optional Prometheus Metrics**: Expose VPN connection status and interface statistics on demand for observability
-
-## TAGS
-
-Latest tag is based on `debian trixie-slim`.
-It is possible to use `debian bullseye-slim` base with `-bullseye` tags.
-Numbers in the tag corresponds to ExpressVPN version.
-
-## PROTOCOL AND CIPHER
-
-You can change it by env variables `protocol` and `cipher`.
-
-Available protocols:
-- `lightway_tcp`
-- `lightway_udp` - default value
-- `tcp`
-- `udp`
-- `auto`
-
-Cipher available **only** with lightway:
-- `aes`
-- `chacha20` - default value
-- `auto`
-
-## NETWORK_LOCK
-
-Currently, `network_lock` is turned on by default but in case of any issues you can turn it off by setting env variable `NETWORK` to `off`.
-In most cases when `network_lock` cannot be used it is caused by old kernel version. Apparently, the minimum kernel version where `network_lock` is supported is **4.9**.
-
-*A script is included that checks if the host's kernel version meets minimum requirements to allow `network_lock`. If not and the user sets or leaves the default setting `network_lock` to `on`, then `network_lock` will be disabled to allow expressvpn to run.*
-
-## AUTO_UPDATE
-
-It is now possible to set env variable AUTO_UPDATE with value "on" for the container. It will cause the container to try to update upon container restart. If not set or set to a different value than "on" container will not try to update expressvpn automatically.
-
-**Available from 3.61.0.12 tag.**
-
-## WHITELIST_DNS
-
-New env is available. It can be used like in the examples below and it is a comma seperated list of dns servers you wish to use and whitelist via iptables. Don't use it or leave empty for default behavior.
-Added by [phynias](https://github.com/phynias), thank you!
-
-## PROMETHEUS METRICS (OPTIONAL)
-
-You can expose Prometheus metrics with VPN connection status and interface counters by enabling the dedicated exporter:
-
+## Quick Start
 ```bash
 docker run \
-  --env=CODE=code \
-  --env=SERVER=smart \
-  --env=METRICS_PROMETHEUS=on \
-  --env=METRICS_PORT=9797 \
-  --env=METRICS_PATH=/metrics.cgi \
-  --publish 9797:9797 \
-  --cap-add=NET_ADMIN \
-  --device=/dev/net/tun \
+  --name expressvpn \
+  --env CODE=your-activation-code \
+  --env SERVER=smart \
+  --env NETWORK=on \
+  --cap-add NET_ADMIN \
+  --device /dev/net/tun \
   --privileged \
   misioslav/expressvpn
 ```
 
-- Default metrics target: `http://<host>:9797/metrics.cgi`
-- Metrics include `expressvpn_connection_status`, `expressvpn_connection_info`, `expressvpn_vpn_interface_info`, and rx/tx byte/packet counters.
-- Example scrape config (`examples/prometheus-scrape-example.yml`) and Grafana dashboard (`examples/grafana-expressvpn-dashboard.json`) are provided.
-- Refer to the example Grafana dashboard to visualize connection state and throughput.
+Expose optional services by setting:
+- `METRICS_PROMETHEUS=on` + `--publish 9797:9797` for metrics.
+- `CONTROL_SERVER=on` + `--publish 8000:8000` for the control API and mount `config.toml` if authentication is required.
 
-## HEALTHCHECK
-Healthcheck is performed once every 2min.
-You can also add `--env=DDNS=domain` or `--env=IP=yourIP` to docker run command or in the environment section of compose in order to perform healthcheck which will be checking if data from env variable DDNS or IP is different than ExpressVPN's IP.
-If you won't set any of them, by default healthcheck will return status `healthy`.
-Also, there is a possibility to add `--env=BEAERER=access_token` from [ipinfo.io](https://ipinfo.io/) if you have an account there (free plan gives you 50k requests per month).
-Additionally, healthchecks.io support has been added and you can add the id of the healthchecks link to the `HEALTHCHECK` variable in docker configs.
-DDNS or IP must be set for ipinfo.io and healthcheck.io to work.
+## Configuration
 
-## DNS LEAKING CHECK
-In order to avoid DNS leaking, you have to replace `resolv.conf` on other containers that uses this one to connect to the network with the `resolv.conf` from expressvpn after it connects.
+### Protocol and Cipher
+Configure via `PROTOCOL` (`lightway_udp`, `lightway_tcp`, `udp`, `tcp`, `auto`) and `CIPHER` (`chacha20`, `aes`, `auto` for Lightway only).
 
-In order to test if DNS is leaking you can use the following script from [macvk/dnsleaktest](https://github.com/macvk/dnsleaktest) repo and run it inside the container for example:
+### Network Lock
+`NETWORK=on` enables the ExpressVPN kill-switch (default). Set `NETWORK=off` if your kernel version (< 4.9) does not support network lock or you need to disable it temporarily.
 
-`curl -s https://raw.githubusercontent.com/macvk/dnsleaktest/refs/heads/master/dnsleaktest.sh | docker exec -i expressvpn bash -s`
+### Auto Update
+Enable ExpressVPN package upgrades on container restart with `AUTO_UPDATE=on`. The default is `off`.
 
-If you do not know how to replace the `resolv.conf` file. [polkaned/expressvpn](https://github.com/polkaned/dockerfiles/tree/master/expressvpn) provides a simple way to do it.
-Just a note, `resolv.conf` might need to be copied over to other containers each time expressvpn reconnects.
+### DNS Whitelist
+`WHITELIST_DNS=comma,separated,ips` creates iptables exceptions allowing specified DNS servers outside the VPN tunnel.
 
-## SOCKS5
-Environment variables for SOCKS5
+### Prometheus Metrics (Optional)
+Set `METRICS_PROMETHEUS=on` to serve metrics via BusyBox `httpd` on `METRICS_PORT` (default `9797`) and path `METRICS_PATH` (default `/metrics.cgi`). Metrics include:
+- `expressvpn_connection_status`
+- `expressvpn_connection_info{server,protocol,cipher,network_lock}`
+- `expressvpn_vpn_interface_info{interface}`
+- `expressvpn_network_rx/tx_bytes_total`
+- `expressvpn_network_rx/tx_packets_total`
 
-| ENV|Desciption|Value|
-| :--- |:---| :---:|
-| SOCKS|Enable/disable socks5|off|
-| SOCKS_IP|Socks IP|0.0.0.0|
-| SOCKS_PORT|Socks port|1080|
-| SOCKS_USER|Socks username|None|
-| SOCKS_PASS|Socks password|None|
-| SOCKS_WHITELIST|**(User&Pass required)** Comma-separated whitelist of ip addresses, that may use the proxy without user/pass authentication|None|
-| SOCKS_AUTH_ONCE|**(User&Pass required)** Once a specific ip address is authed successfully with user/pass, it is added to a whitelist and may use the proxy without auth|false|
-| SOCKS_LOGS|Enable/disable logging|on|
+Reference configs: `examples/prometheus-scrape-example.yml` and `examples/grafana-expressvpn-dashboard.json`.
 
-## CONTROL SERVER
-HTTP API for controlling ExpressVPN container remotely
+### Healthcheck
+A built-in healthcheck runs every two minutes. You may provide:
+- `DDNS` or `IP` to monitor the public IP.
+- `HEALTHCHECK` with a [healthchecks.io](https://healthchecks.io/) UUID.
+- `BEARER` for an [ipinfo.io](https://ipinfo.io) token to enrich IP checks (optional; 50k requests/month on free tier).
 
-| ENV|Description|Value|
-| :--- |:---| :---:|
-| CONTROL_SERVER|Enable/disable HTTP control server|off|
-| CONTROL_IP|Control server IP|0.0.0.0|
-| CONTROL_PORT|Control server port|8000|
+### DNS Leak Check
+Replace `resolv.conf` in dependent containers with the VPN-provided file (`/shared_data/resolv.conf` if you copy it out) to avoid leaks. Test inside the container with:
+```bash
+curl -s https://raw.githubusercontent.com/macvk/dnsleaktest/refs/heads/master/dnsleaktest.sh | docker exec -i expressvpn bash -s
+```
+
+### SOCKS5 Proxy
+Control Microsocks with:
+
+| ENV | Description | Default |
+| --- | --- | --- |
+| `SOCKS` | Enable/disable proxy | `off` |
+| `SOCKS_IP` | Bind address | `0.0.0.0` |
+| `SOCKS_PORT` | Listen port | `1080` |
+| `SOCKS_USER` / `SOCKS_PASS` | Credentials (both required) | empty |
+| `SOCKS_WHITELIST` | Comma-separated IPs bypass auth | empty |
+| `SOCKS_AUTH_ONCE` | Single-use auth (remember IP) | `false` |
+| `SOCKS_LOGS` | Enable logs | `true` |
+
+### Control Server
+Activate the HTTP control API with:
+- `CONTROL_SERVER=on`
+- `CONTROL_IP` (default `0.0.0.0`) and `CONTROL_PORT` (default `8000`)
+
+Authentication configuration is supplied via TOML mounted to `/expressvpn/auth/config.toml`. Sample: `files/config.toml.example`.
+
+## Control Server API
 
 ### Authentication
-The control server supports authentication via a configuration file. Create a `config.toml` file and mount it to `/expressvpn/auth/config.toml`. A sample configuration file is available in the `files/` directory.
+Define roles in the TOML config. Supported modes:
 
-#### Supported Authentication Types
+1. **Basic authentication** – `auth = "basic"`, `username`, `password`.
+2. **API key** – `auth = "api_key"`, `api_key` header value for `Authorization: Bearer`.
+3. **No authentication** – `auth = "none"`; exposes endpoints without protection (use only in trusted environments).
 
-**1. Basic Authentication (HTTP Basic Auth)**
-- Uses username and password
-- Credentials are sent in the `Authorization: Basic` header
-- Base64 encoded username:password
+Without a config file, all endpoints are unauthenticated for backward compatibility.
 
+Example role definitions:
 ```toml
 [[roles]]
 name = "admin"
@@ -137,242 +134,83 @@ routes = ["GET /v1/status", "GET /v1/servers", "GET /v1/dns", "GET /v1/ip", "GET
 auth = "basic"
 username = "admin"
 password = "changeme"
-```
 
-**2. API Key Authentication (Bearer Token)**
-- Uses a single API key for authentication
-- Key is sent in the `Authorization: Bearer` header
-- Suitable for programmatic access and integrations
-
-```toml
 [[roles]]
 name = "api_user"
-routes = ["GET /v1/status", "GET /v1/servers", "GET /v1/dns", "GET /v1/ip", "GET /v1/dnsleak", "POST /v1/connect", "POST /v1/disconnect", "GET /v1/health"]
+routes = ["GET /v1/status", "POST /v1/connect", "POST /v1/disconnect"]
 auth = "api_key"
-api_key = "your-secret-api-key-here"
+api_key = "your-secret-api-key"
 ```
-
-**3. No Authentication (Explicitly Disabled)**
-- Explicitly disable authentication with `auth = "none"`
-- All endpoints are accessible without credentials
-- **Warning**: Only use this in trusted environments
-
-```toml
-[[roles]]
-name = "open_access"
-routes = ["GET /v1/status", "GET /v1/servers", "GET /v1/dns", "GET /v1/ip", "GET /v1/dnsleak", "POST /v1/connect", "POST /v1/disconnect", "GET /v1/health"]
-auth = "none"
-```
-
-**4. No Authentication (Legacy - No Config File)**
-- If no `config.toml` file is mounted, authentication is disabled
-- All endpoints are accessible without credentials
-- **Warning**: Only use this in trusted environments
 
 ### API Endpoints
-- `GET /v1/status` - Get ExpressVPN connection status
-- `GET /v1/servers` - List available servers
-- `GET /v1/dns` - Get DNS configuration information
-- `GET /v1/ip` - Get public IP information and location
-- `GET /v1/dnsleak` - Run DNS leak test using macvk/dnsleaktest
-- `POST /v1/connect` - Connect to a specific server (requires JSON body: `{"server": "server_name"}`)
-- `POST /v1/disconnect` - Disconnect from VPN
-- `GET /v1/health` - Health check endpoint
+- `GET /v1/status` – ExpressVPN connection status.
+- `GET /v1/servers` – Available server list (`expressvpn list all`).
+- `GET /v1/dns` – Current DNS settings.
+- `GET /v1/ip` – Public IP information.
+- `GET /v1/dnsleak` – Execute DNS leak test.
+- `POST /v1/connect` – Connect to server (`{"server": "smart"}`).
+- `POST /v1/disconnect` – Disconnect from VPN.
+- `GET /v1/health` – Health probe for automation.
 
 ### Example Usage
-
-**Basic Authentication:**
+**Basic authentication**
 ```bash
-# Check status
 curl -u admin:changeme http://localhost:8000/v1/status
-
-# Connect to a server
 curl -u admin:changeme -X POST -H "Content-Type: application/json" \
   -d '{"server": "smart"}' http://localhost:8000/v1/connect
-
-# Disconnect
 curl -u admin:changeme -X POST http://localhost:8000/v1/disconnect
 ```
 
-**API Key Authentication:**
+**API key authentication**
 ```bash
-# Check status
-curl -H "Authorization: Bearer your-secret-api-key-here" http://localhost:8000/v1/status
-
-# Connect to a server
-curl -H "Authorization: Bearer your-secret-api-key-here" -X POST -H "Content-Type: application/json" \
-  -d '{"server": "smart"}' http://localhost:8000/v1/connect
-
-# Disconnect
-curl -H "Authorization: Bearer your-secret-api-key-here" -X POST http://localhost:8000/v1/disconnect
+curl -H "Authorization: Bearer your-secret-api-key" http://localhost:8000/v1/status
 ```
 
-**No Authentication (when auth = "none" or no config file):**
+## Building
+Use the helper script to build for different distributions and architectures:
 ```bash
-# All endpoints accessible without credentials
-curl http://localhost:8000/v1/status
-curl http://localhost:8000/v1/dnsleak
+./expressbuild.sh 3.83.0.2 my-repo            # Build trixie image (default) and load locally
+./expressbuild.sh 3.83.0.2 my-repo bullseye   # Build bullseye variant
+./expressbuild.sh 3.83.0.2 my-repo matrix push
 ```
+The script wraps `docker buildx build` and prunes build cache when running with `load` action.
 
-### Response Examples
-
-**DNS Information (`GET /v1/dns`):**
-```json
-{
-  "dns_servers": ["10.0.0.1", "8.8.8.8"],
-  "resolv_conf": "nameserver 10.0.0.1\nnameserver 8.8.8.8\n"
-}
-```
-
-**Public IP Information (`GET /v1/ip`):**
-```json
-{
-  "ip": "203.0.113.1",
-  "country": "US",
-  "city": "New York",
-  "organization": "ExpressVPN",
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-**DNS Leak Test (`GET /v1/dnsleak`):**
-```json
-{
-  "dns_servers_found": ["203.0.113.1", "203.0.113.2"],
-  "test_summary": "No DNS leaks detected",
-  "raw_output": "Testing for DNS leaks...\nFound 2 DNS servers\nNo leaks detected",
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-
-
-## BUILDING
-
-To build the container locally with the latest changes:
-
-```bash
-# Build with default trixie-slim distribution
-./expressbuild.sh 3.61.0.12 test-repo
-
-# Build with bullseye-slim distribution
-./expressbuild.sh 3.61.0.12 test-repo bullseye-slim
-
-# Build matrix (both distributions)
-./expressbuild.sh 3.61.0.12 test-repo matrix
-```
-
-## Download
-
-`docker pull misioslav/expressvpn`
-
-## Start the container
-
-```
-    docker run \
-    --env=CODE=code \
-    --env=SERVER=smart \
-    --cap-add=NET_ADMIN \
-    --device=/dev/net/tun \
-    --privileged \
-    --detach=true \
-    --tty=true \
-    --name=expressvpn \
-    --publish 80:80 \ #optional
-    --publish 1080:1080 \ #optional for socks5
-    --publish 8000:8000 \ #optional for control server
-    --env=DDNS=domain \ #optional
-    --env=IP=yourIp \ #optional
-    --env=BEARER=ipInfoAccessToken \ #optional
-    --env=NETWORK=on/off \ #optional set to on by default
-    --env=PROTOCOL=lightway_udp \ #optional set default to lightway_udp see protocol and cipher section for more information
-    --env=CIPHER=chacha20 \ #optional set default to chacha20 see protocol and cipher section for more information
-    --env=WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8 \ #optional
-    --env=SOCKS=off \ #optional
-    --env=SOCKS_IP=0.0.0.0 \ #optional
-    --env=SOCKS_PORT=1080 \ #optional
-    --env=SOCKS_USER=someuser \ #optional (required if providing password)
-    --env=SOCKS_PASS=somepass \ #optional (required if providing username)
-    --env=SOCKS_WHITELIST=192.168.1.1 \ #optional
-    --env=SOCKS_AUTH_ONCE=false \ #optional
-    --env=SOCKS_LOGS=true \ #optional
-    --env=CONTROL_SERVER=off \ #optional
-    --env=CONTROL_IP=0.0.0.0 \ #optional
-    --env=CONTROL_PORT=8000 \ #optional
-    --volume ./files/config.toml:/expressvpn/auth/config.toml \ #optional for control server auth
-    misioslav/expressvpn \
-    /bin/bash
-```
-
-
-Another container that will use ExpressVPN network:
-
-```
-    docker run \
-    --name=example \
-    --net=container:expressvpn \
-    maintainer/example:version
-```
-
-## Docker Compose
-
-```
+## Docker Compose Example
+```yaml
 services:
-
   example:
-    image: maintainer/example:version
-    container_name: example
+    image: maintainer/example
     network_mode: service:expressvpn
     depends_on:
       expressvpn:
-        condition: service_healthy # This forces the dependent container to wait for the expressvpn container to report healthy. It helps prevent traffic before expressvpn is connected.
+        condition: service_healthy
 
   expressvpn:
     image: misioslav/expressvpn:latest
     container_name: expressvpn
     restart: unless-stopped
-    ports: # ports from which container that uses expressvpn connection will be available in local network
-      - 80:80 # example & optional
-      - 1080:1080 # example & optional, commonly used socks5 port
-      - 8000:8000 # example & optional, control server port
+    ports:
+      - 80:80        # optional service published through VPN
+      - 1080:1080    # optional socks5 port
+      - 8000:8000    # optional control server
+      - 9797:9797    # optional Prometheus metrics
     environment:
-      # - WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8  # optional - Comma seperated list of dns servers you wish to use and whitelist via iptables. DO NOT set this unless you know what you are doing. Whitelisting could cause traffic to circumvent the VPN and cause a DNS leak.
-      - CODE=code # Activation Code from ExpressVPN https://www.expressvpn.com/support/troubleshooting/find-activation-code/
-      - SERVER=smart # By default container will connect to smart location, list of available locations you can find below
-      - DDNS=yourDdnsDomain # optional
-      - IP=yourStaticIp # optional - won't work if DDNS is setup
-      - BEAERER=ipInfoAccessToken # optional can be taken from ipinfo.io
-      #### These will only work if DDNS or IP are set. ####
-      - HEALTHCHECK=healthchecks.ioId # optional can be taken from healthchecks.io
-      #####################################################
-      - NETWORK=off/on #optional and set to on by default (This is the killswitch)
-      - PROTOCOL=lightway_udp #optional set default to lightway_udp see protocol and cipher section for more information
-      - CIPHER=chacha20 #optional set default to chacha20 see protocol and cipher section for more information
-      - SOCKS=off #optional set default to off see socks5 section for more information
-      - SOCKS_IP=0.0.0.0 #optional set default to 0.0.0.0 
-      - SOCKS_PORT=1080 #optional set default to 1080 
-      - SOCKS_USER=someuser #optional set default to NONE 
-      - SOCKS_PASS=somepass #optional set default to NONE 
-      - SOCKS_WHITELIST=192.168.1.1 #optional set default to NONE 
-      - SOCKS_AUTH_ONCE=false #optional set default to false 
-      - SOCKS_LOGS=true #optional set default to true 
-      - CONTROL_SERVER=off #optional set default to off see control server section for more information
-      - CONTROL_IP=0.0.0.0 #optional set default to 0.0.0.0
-      - CONTROL_PORT=8000 #optional set default to 8000
-    volumes:
-      - ./files/config.toml:/expressvpn/auth/config.toml # optional for control server auth
+      - CODE=code
+      - SERVER=smart
+      - NETWORK=on
+      - AUTO_UPDATE=off
+      - METRICS_PROMETHEUS=on
+      - CONTROL_SERVER=on
     cap_add:
       - NET_ADMIN
     devices:
       - /dev/net/tun
-    stdin_open: true
-    tty: true
     command: /bin/bash
     privileged: true
 ```
 
-## SERVERS AVAILABLE
-
-You can choose to which location ExpressVPN should connect to by setting up `SERVER=ALIAS`, `SERVER=COUNTRY`, `SERVER=LOCATION` or `SERVER=SMART`
-
-You can check available locations from inside the container by running `expressvpn list all` command.
+## Available Servers
+Set `SERVER` to a shortcut (`smart`, `usny`, `uklo`, etc.), a country name, or a full location. View the list from inside the container with:
+```bash
+expressvpn list all
+```
