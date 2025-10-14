@@ -76,8 +76,9 @@ docker run \
 Healthcheck is performed once every 2min.
 You can also add `--env=DDNS=domain` or `--env=IP=yourIP` to docker run command or in the environment section of compose in order to perform healthcheck which will be checking if data from env variable DDNS or IP is different than ExpressVPN's IP.
 If you won't set any of them, by default healthcheck will return status `healthy`.
+Also, there is a possibility to add `--env=BEAERER=access_token` from [ipinfo.io](https://ipinfo.io/) if you have an account there (free plan gives you 50k requests per month).
 Additionally, healthchecks.io support has been added and you can add the id of the healthchecks link to the `HEALTHCHECK` variable in docker configs.
-DDNS or IP must be set for healthcheck.io to work. 
+DDNS or IP must be set for ipinfo.io and healthcheck.io to work.
 
 ## DNS LEAKING CHECK
 In order to avoid DNS leaking, you have to replace `resolv.conf` on other containers that uses this one to connect to the network with the `resolv.conf` from expressvpn after it connects.
@@ -140,6 +141,7 @@ To build the container locally with the latest changes:
     --publish 1080:1080 \ #optional for socks5
     --env=DDNS=domain \ #optional
     --env=IP=yourIp \ #optional
+    --env=BEARER=ipInfoAccessToken \ #optional
     --env=NETWORK=on/off \ #optional set to on by default
     --env=PROTOCOL=lightway_udp \ #optional set default to lightway_udp see protocol and cipher section for more information
     --env=CIPHER=chacha20 \ #optional set default to chacha20 see protocol and cipher section for more information
@@ -192,6 +194,7 @@ services:
       - SERVER=smart # By default container will connect to smart location, list of available locations you can find below
       - DDNS=yourDdnsDomain # optional
       - IP=yourStaticIp # optional - won't work if DDNS is setup
+      - BEAERER=ipInfoAccessToken # optional can be taken from ipinfo.io
       #### These will only work if DDNS or IP are set. ####
       - HEALTHCHECK=healthchecks.ioId # optional can be taken from healthchecks.io
       #####################################################
