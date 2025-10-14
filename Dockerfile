@@ -89,7 +89,7 @@ RUN set -eux; \
     fi; \
     rm -rf /var/lib/apt/lists/*; \
     rm -rf /var/log/*.log; \
-    chmod +x /expressvpn/control-server.sh
+    chmod +x /expressvpn/control-server.sh /expressvpn/metrics-server.sh
 
 HEALTHCHECK --start-period=30s --timeout=5s --interval=2m --retries=3 CMD bash /expressvpn/healthcheck.sh
 

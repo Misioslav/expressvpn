@@ -120,6 +120,21 @@ start_socks_proxy() {
     microsocks "${args[@]}" &
 }
 
+start_metrics_fallback() {
+    local port="$1"
+    local path="$2"
+    local listen_addr="TCP-LISTEN:${port},reuseaddr,fork"
+    local exec_cmd
+    printf -v exec_cmd 'METRICS_EXPECTED_PATH=%q /expressvpn/metrics-server.sh' "$path"
+    log "Starting metrics fallback server on port ${port} via socat"
+    socat -T30 "${listen_addr}" EXEC:"${exec_cmd}",pipes >>/tmp/metrics-socat.log 2>&1 &
+    local socat_pid=$!
+    sleep 1
+    if ! kill -0 "${socat_pid}" 2>/dev/null; then
+        log "Unable to launch metrics fallback server, see /tmp/metrics-socat.log for details"
+    fi
+}
+
 start_metrics_exporter() {
     if [[ ${METRICS_PROMETHEUS:-off} != "on" ]]; then
         return
@@ -161,6 +176,7 @@ EOF
         local unpriv_port_start
         unpriv_port_start=$(cat /proc/sys/net/ipv4/ip_unprivileged_port_start 2>/dev/null || echo 1024)
         log "Hint: ensure METRICS_PORT is >= ${unpriv_port_start}, run with CAP_NET_BIND_SERVICE, or start the container with '--security-opt seccomp=unconfined'."
+        start_metrics_fallback "${port}" "${path}"
     fi
 }
 
