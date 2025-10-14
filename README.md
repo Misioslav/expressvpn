@@ -74,7 +74,7 @@ Enable ExpressVPN package upgrades on container restart with `AUTO_UPDATE=on`. T
 `WHITELIST_DNS=comma,separated,ips` creates iptables exceptions allowing specified DNS servers outside the VPN tunnel.
 
 ### Prometheus Metrics (Optional)
-Set `METRICS_PROMETHEUS=on` to serve metrics via BusyBox `httpd` on `METRICS_PORT` (default `9797`) and path `METRICS_PATH` (default `/metrics.cgi`). Metrics include:
+Set `METRICS_PROMETHEUS=on` to serve metrics via BusyBox `httpd` on `PORT:9797` and path `PATH:/metrics.cgi`. Metrics include:
 - `expressvpn_connection_status`
 - `expressvpn_connection_info{server,protocol,cipher,network_lock}`
 - `expressvpn_vpn_interface_info{interface}`

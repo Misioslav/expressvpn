@@ -33,8 +33,6 @@ ENV CODE="code" \
     CONTROL_PORT="8000" \
     CONTROL_IP="0.0.0.0" \
     METRICS_PROMETHEUS="off" \
-    METRICS_PORT="9797" \
-    METRICS_PATH="/metrics.cgi" \
     METRICS_VPN_IF=""
 
 ARG NUM
