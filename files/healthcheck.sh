@@ -2,7 +2,9 @@
 set -euo pipefail
 
 resolve_check_ip() {
-    if [[ -n ${DDNS:-} ]]; then
+    if [[ ${DDNS+x} ]]; then
+        [[ -z ${DDNS:-} ]] && return
+
         local resolved
         resolved=$(getent ahostsv4 "$DDNS" 2>/dev/null | awk 'NR==1 { print $1 }') || true
         if [[ -z $resolved ]]; then
@@ -29,7 +31,14 @@ main() {
     local target_ip
     target_ip=$(resolve_check_ip || true)
 
-    [[ -z $target_ip ]] && exit 0
+    if [[ -z $target_ip ]]; then
+        if [[ ${DDNS+x} ]]; then
+            notify_healthcheck "/fail" || true
+            exit 1
+        fi
+
+        exit 0
+    fi
 
     local express_ip
     if ! express_ip=$(curl -fsSL --max-time 10 -H "Authorization: Bearer ${BEARER:-}" "https://ipinfo.io" | jq -r '.ip'); then
