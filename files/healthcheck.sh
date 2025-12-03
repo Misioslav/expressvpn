@@ -2,7 +2,9 @@
 set -euo pipefail
 
 resolve_check_ip() {
-    if [[ -n ${DDNS:-} ]]; then
+    if [[ ${DDNS+x} ]]; then
+        [[ -z ${DDNS:-} ]] && return
+
         local -a resolved=()
         local -A seen=()
         # Collect IPv4 entries first to match the IPv4-only ExpressVPN lookup
@@ -42,12 +44,24 @@ notify_healthcheck() {
 }
 
 main() {
+    local ddns_requested=false
+    if [[ ${DDNS+x} ]]; then
+        ddns_requested=true
+    fi
+
     local -a target_ips=()
     while IFS= read -r ip; do
         [[ -n $ip ]] && target_ips+=("$ip")
     done < <(resolve_check_ip || true)
 
-    [[ ${#target_ips[@]} -eq 0 ]] && exit 0
+    if [[ ${#target_ips[@]} -eq 0 ]]; then
+        if [[ $ddns_requested == true ]]; then
+            notify_healthcheck "/fail" || true
+            exit 1
+        fi
+
+        exit 0
+    fi
 
     local express_ip
     if ! express_ip=$(curl -fsSL --max-time 10 -H "Authorization: Bearer ${BEARER:-}" "https://ipinfo.io" | jq -r '.ip'); then
