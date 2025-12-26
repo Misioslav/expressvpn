@@ -10,19 +10,40 @@ trim() { sed 's/^[[:space:]]*//;s/[[:space:]]*$//'; }
 
 # 1) Determine connection status and settings via expressvpnctl (best effort)
 connected=0
+connection_state=""
 server_label=""
 protocol_label=""
 network_lock_label=""
+vpn_ip_label=""
+public_ip_label=""
 
 state_label=$(timeout 3s expressvpnctl get connectionstate 2>/dev/null | trim || true)
-if [[ "$state_label" == "Connected" ]]; then
+case "$state_label" in
+  Connected) connected=1 ;;
+  Disconnected|Connecting|Interrupted|Reconnecting|DisconnectingToReconnect|Disconnecting) ;;
+  *) ;;
+esac
+connection_state="$state_label"
   connected=1
 fi
 
 # 2) Determine preferences via expressvpnctl (best effort)
 protocol_label=$(timeout 3s expressvpnctl get protocol 2>/dev/null | trim || true)
 network_lock_label=$(timeout 3s expressvpnctl get networklock 2>/dev/null | trim || true)
-server_label=$(timeout 3s expressvpnctl get region 2>/dev/null | trim || true)
+vpn_ip_label=$(timeout 3s expressvpnctl get vpnip 2>/dev/null | trim || true)
+
+if [[ -n "${BEARER:-}" ]]; then
+  public_ip_label=$(curl -fsSL --max-time 5 -H "Authorization: Bearer ${BEARER}" "https://ipinfo.io/ip" 2>/dev/null | trim || true)
+else
+  public_ip_label=$(curl -fsSL --max-time 5 "https://ipinfo.io/ip" 2>/dev/null | trim || true)
+fi
+
+# Prefer the actual connected location from status; fall back to configured region.
+status_output=$(timeout 3s expressvpnctl status 2>/dev/null || true)
+server_label=$(printf '%s\n' "$status_output" | sed -n 's/^Connected to[: ]\{1,\}//p' | head -n1 | trim || true)
+if [[ -z "$server_label" ]]; then
+  server_label=$(timeout 3s expressvpnctl get region 2>/dev/null | trim || true)
+fi
 
 # Fallbacks to env if not detectable
 : "${protocol_label:=${PROTOCOL:-}}"
@@ -41,9 +62,13 @@ fi
 # 4) Emit metrics
 # Connection metrics
 echo "expressvpn_connection_status ${connected}"
+# Connection state metric (label enum)
+printf 'expressvpn_connection_state{state="%s"} 1\n' "${connection_state//\"/\\\"}"
 # info metric with labels (strings go in labels)
 printf 'expressvpn_connection_info{server="%s",protocol="%s",network_lock="%s"} 1\n' \
   "${server_label//\"/\\\"}" "${protocol_label//\"/\\\"}" "${network_lock_label//\"/\\\"}"
+printf 'expressvpn_vpn_ip_info{ip="%s"} 1\n' "${vpn_ip_label//\"/\\\"}"
+printf 'expressvpn_public_ip_info{ip="%s"} 1\n' "${public_ip_label//\"/\\\"}"
 
 # Interface metrics (only if detected)
 if [[ -n "$vpn_if" && -d "/sys/class/net/$vpn_if/statistics" ]]; then
