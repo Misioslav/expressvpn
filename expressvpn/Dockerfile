@@ -1,0 +1,76 @@
+ARG DISTRIBUTION="trixie-slim"
+
+FROM debian:${DISTRIBUTION} AS microsocks-builder
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get upgrade -y; \
+    apt-get install -y --no-install-recommends build-essential git ca-certificates; \
+    git clone https://github.com/rofl0r/microsocks.git /tmp/microsocks; \
+    make -C /tmp/microsocks; \
+    strip /tmp/microsocks/microsocks; \
+    apt-get purge -y --auto-remove build-essential git; \
+    rm -rf /var/lib/apt/lists/*
+
+FROM debian:${DISTRIBUTION}
+
+ENV CODE="code" \
+    SERVER="smart" \
+    HEALTHCHECK="" \
+    BEARER="" \
+    NETWORK="on" \
+    ALLOW_LAN="true" \
+    LAN_CIDR="" \
+    PROTOCOL="lightwayudp" \
+    METRICS_PROMETHEUS="off" \
+    METRICS_PORT="9797" \
+    METRICS_PATH="/metrics.cgi" \
+    CONTROL_SERVER="off" \
+    CONTROL_IP="0.0.0.0" \
+    CONTROL_PORT="8000" \
+    AUTH_CONFIG="/expressvpn/config.toml" \
+    SOCKS="off" \
+    SOCKS_LOGS="true" \
+    SOCKS_AUTH_ONCE="false" \
+    SOCKS_USER="" \
+    SOCKS_PASS="" \
+    SOCKS_IP="0.0.0.0" \
+    SOCKS_PORT="1080" \
+    SOCKS_WHITELIST=""
+
+ARG EXPRESSVPN_VERSION="5.0.1.11498"
+ARG EXPRESSVPN_RUN_URL="https://www.expressvpn.works/clients/linux/expressvpn-linux-universal-${EXPRESSVPN_VERSION}.run"
+COPY files/ /expressvpn/
+COPY --from=microsocks-builder /tmp/microsocks/microsocks /usr/local/bin/microsocks
+
+RUN set -eux; \
+    export DEBIAN_FRONTEND=noninteractive; \
+    apt-get update; \
+    apt-get upgrade -y; \
+    apt-get install -y --no-install-recommends \
+        curl \
+        ca-certificates \
+        iproute2 \
+        jq \
+        iptables \
+        iputils-ping \
+        net-tools \
+        procps \
+        psmisc \
+        libatomic1 \
+        libglib2.0-0 \
+        busybox \
+        socat \
+        python3 \
+        python3-tomli
+
+RUN set -eux; \
+    curl -fsSL "${EXPRESSVPN_RUN_URL}" -o /tmp/expressvpn.run; \
+    sh /tmp/expressvpn.run --accept --quiet --noprogress -- --no-gui --sysvinit; \
+    rm -f /tmp/expressvpn.run; \
+    rm -rf /var/lib/apt/lists/*; \
+    rm -rf /var/log/*.log
+
+HEALTHCHECK --start-period=30s --timeout=5s --interval=2m --retries=3 CMD bash /expressvpn/healthcheck.sh
+
+ENTRYPOINT ["/bin/bash", "/expressvpn/start.sh"]
