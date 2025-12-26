@@ -54,6 +54,8 @@ RUN set -eux; \
         jq \
         iptables \
         iputils-ping \
+        procps \
+        psmisc \
         libatomic1 \
         libglib2.0-0 \
         busybox \
