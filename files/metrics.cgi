@@ -24,19 +24,12 @@ case "$state_label" in
   *) ;;
 esac
 connection_state="$state_label"
-  connected=1
-fi
 
 # 2) Determine preferences via expressvpnctl (best effort)
 protocol_label=$(timeout 3s expressvpnctl get protocol 2>/dev/null | trim || true)
 network_lock_label=$(timeout 3s expressvpnctl get networklock 2>/dev/null | trim || true)
 vpn_ip_label=$(timeout 3s expressvpnctl get vpnip 2>/dev/null | trim || true)
-
-if [[ -n "${BEARER:-}" ]]; then
-  public_ip_label=$(curl -fsSL --max-time 5 -H "Authorization: Bearer ${BEARER}" "https://ipinfo.io/ip" 2>/dev/null | trim || true)
-else
-  public_ip_label=$(curl -fsSL --max-time 5 "https://ipinfo.io/ip" 2>/dev/null | trim || true)
-fi
+public_ip_label=$(timeout 3s expressvpnctl get pubip 2>/dev/null | trim || true)
 
 # Prefer the actual connected location from status; fall back to configured region.
 status_output=$(timeout 3s expressvpnctl status 2>/dev/null || true)

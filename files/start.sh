@@ -117,6 +117,9 @@ configure_preferences() {
     if ! expressvpnctl set allowlan "${ALLOW_LAN:-true}" >/dev/null 2>&1; then
         log "Unable to set allowlan to ${ALLOW_LAN:-true}"
     fi
+    if ! expressvpnctl set autoconnect true >/dev/null 2>&1; then
+        log "Unable to set autoconnect to true"
+    fi
 
     if ! xvpn_cmd connect "${SERVER:-smart}"; then
         log "Unable to connect to ${SERVER:-smart}"
