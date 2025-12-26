@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+xvpn_cmd() {
+    expressvpnctl "$@"
+}
+
 resolve_check_ip() {
     if [[ ${DDNS+x} ]]; then
         [[ -z ${DDNS:-} ]] && return
@@ -53,8 +57,8 @@ main() {
 
     if [[ "$target_ip" == "$express_ip" ]]; then
         notify_healthcheck "/fail" || true
-        expressvpn disconnect || true
-        expressvpn connect "${SERVER:-smart}" || true
+        xvpn_cmd disconnect || true
+        xvpn_cmd connect "${SERVER:-smart}" || true
         exit 1
     fi
 

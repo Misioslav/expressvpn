@@ -5,30 +5,26 @@ Container-based on [polkaned/expressvpn](https://github.com/polkaned/dockerfiles
 ## FEATURES
 
 - **Latest Libraries**: All system packages are upgraded to their newest versions during build for enhanced security and compatibility
-- **Multi-Distribution Support**: Supports both `debian trixie-slim` (default) and `debian bullseye-slim` distributions
+- **Single Distribution**: Targets `debian trixie-slim` on `amd64` only
 - **Automatic Package Updates**: Built-in `apt-get upgrade` ensures the latest security patches and bug fixes
+- **ExpressVPN 5.x CLI**: Uses the headless-friendly `expressvpnctl` workflow and universal `.run` installer
 
 ## TAGS
 
-Latest tag is based on `debian trixie-slim`.
-It is possible to use `debian bullseye-slim` base with `-bullseye` tags.
+Latest tag is based on `debian trixie-slim` on `amd64`.
 Numbers in the tag corresponds to ExpressVPN version.
 
-## PROTOCOL AND CIPHER
+## PROTOCOL
 
-You can change it by env variables `protocol` and `cipher`.
+You can change it by env variable `PROTOCOL`.
 
 Available protocols:
-- `lightway_tcp`
-- `lightway_udp` - default value
-- `tcp`
-- `udp`
 - `auto`
-
-Cipher available **only** with lightway:
-- `aes`
-- `chacha20` - default value
-- `auto`
+- `lightwayudp` - default value
+- `lightwaytcp`
+- `openvpnudp`
+- `openvpntcp`
+- `wireguard`
 
 ## NETWORK_LOCK
 
@@ -37,11 +33,13 @@ In most cases when `network_lock` cannot be used it is caused by old kernel vers
 
 *A script is included that checks if the host's kernel version meets minimum requirements to allow `network_lock`. If not and the user sets or leaves the default setting `network_lock` to `on`, then `network_lock` will be disabled to allow expressvpn to run.*
 
-## AUTO_UPDATE
+## ALLOW_LAN
+By default `ALLOW_LAN=true` to allow access to services over your LAN while Network Lock is on. Set `ALLOW_LAN=false` to block LAN access.
+If you need access from your LAN while the VPN is connected, set `LAN_CIDR` to your local subnet so return traffic routes correctly (e.g. `LAN_CIDR=192.168.55.0/24`).
 
-It is now possible to set env variable AUTO_UPDATE with value "on" for the container. It will cause the container to try to update upon container restart. If not set or set to a different value than "on" container will not try to update expressvpn automatically.
-
-**Available from 3.61.0.12 tag.**
+## ACTIVATION (HEADLESS)
+This image uses the ExpressVPN 5.x CLI (`expressvpnctl`) under the hood. Activation is handled automatically from the `CODE` environment variable.
+The CLI requires background mode for headless use, and this is enabled during startup.
 
 ## WHITELIST_DNS
 
@@ -81,6 +79,22 @@ Environment variables for SOCKS5
 | SOCKS_AUTH_ONCE|**(User&Pass required)** Once a specific ip address is authed successfully with user/pass, it is added to a whitelist and may use the proxy without auth|false|
 | SOCKS_LOGS|Enable/disable logging|on|
 
+## PROMETHEUS METRICS (OPTIONAL)
+Enable the metrics exporter with:
+- `METRICS_PROMETHEUS=on`
+- `METRICS_PORT=9797`
+- `METRICS_PATH=/metrics.cgi`
+
+Expose the port (e.g., `-p 9797:9797`) and scrape `/metrics.cgi` or `/metrics`.
+
+## CONTROL SERVER (OPTIONAL)
+Enable the HTTP control API with:
+- `CONTROL_SERVER=on`
+- `CONTROL_IP=0.0.0.0`
+- `CONTROL_PORT=8000`
+
+Optional auth config file can be mounted to `/expressvpn/config.toml`. See `files/config.toml.example`.
+
 
 
 ## BUILDING
@@ -88,14 +102,8 @@ Environment variables for SOCKS5
 To build the container locally with the latest changes:
 
 ```bash
-# Build with default trixie-slim distribution
-./expressbuild.sh 3.61.0.12 test-repo
-
-# Build with bullseye-slim distribution
-./expressbuild.sh 3.61.0.12 test-repo bullseye-slim
-
-# Build matrix (both distributions)
-./expressbuild.sh 3.61.0.12 test-repo matrix
+# Build with default trixie-slim distribution on amd64
+./expressbuild.sh 5.0.1.11498 test-repo
 ```
 
 ## Download
@@ -116,13 +124,18 @@ To build the container locally with the latest changes:
     --name=expressvpn \
     --publish 80:80 \ #optional
     --publish 1080:1080 \ #optional for socks5
+    --publish 8000:8000 \ #optional control server
+    --publish 9797:9797 \ #optional metrics
     --env=DDNS=domain \ #optional
     --env=IP=yourIp \ #optional
     --env=BEARER=ipInfoAccessToken \ #optional
     --env=NETWORK=on/off \ #optional set to on by default
-    --env=PROTOCOL=lightway_udp \ #optional set default to lightway_udp see protocol and cipher section for more information
-    --env=CIPHER=chacha20 \ #optional set default to chacha20 see protocol and cipher section for more information
+    --env=ALLOW_LAN=true \ #optional allow LAN access while Network Lock is on
+    --env=LAN_CIDR=192.168.55.0/24 \ #optional LAN subnet for return routing
+    --env=PROTOCOL=lightwayudp \ #optional set default to lightwayudp see protocol section for more information
     --env=WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8 \ #optional
+    --env=METRICS_PROMETHEUS=on \ #optional
+    --env=CONTROL_SERVER=on \ #optional
     --env=SOCKS=off \ #optional
     --env=SOCKS_IP=0.0.0.0 \ #optional
     --env=SOCKS_PORT=1080 \ #optional
@@ -165,6 +178,8 @@ services:
     ports: # ports from which container that uses expressvpn connection will be available in local network
       - 80:80 # example & optional
       - 1080:1080 # example & optional, commonly used socks5 port
+      - 8000:8000 # optional control server
+      - 9797:9797 # optional metrics
     environment:
       # - WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8  # optional - Comma seperated list of dns servers you wish to use and whitelist via iptables. DO NOT set this unless you know what you are doing. Whitelisting could cause traffic to circumvent the VPN and cause a DNS leak.
       - CODE=code # Activation Code from ExpressVPN https://www.expressvpn.com/support/troubleshooting/find-activation-code/
@@ -176,8 +191,11 @@ services:
       - HEALTHCHECK=healthchecks.ioId # optional can be taken from healthchecks.io
       #####################################################
       - NETWORK=off/on #optional and set to on by default (This is the killswitch)
-      - PROTOCOL=lightway_udp #optional set default to lightway_udp see protocol and cipher section for more information
-      - CIPHER=chacha20 #optional set default to chacha20 see protocol and cipher section for more information
+      - ALLOW_LAN=true #optional allow LAN access while Network Lock is on
+      - LAN_CIDR=192.168.55.0/24 #optional LAN subnet for return routing
+      - PROTOCOL=lightwayudp #optional set default to lightwayudp see protocol section for more information
+      - METRICS_PROMETHEUS=on # optional
+      - CONTROL_SERVER=on # optional
       - SOCKS=off #optional set default to off see socks5 section for more information
       - SOCKS_IP=0.0.0.0 #optional set default to 0.0.0.0 
       - SOCKS_PORT=1080 #optional set default to 1080 
@@ -198,6 +216,6 @@ services:
 
 ## SERVERS AVAILABLE
 
-You can choose to which location ExpressVPN should connect to by setting up `SERVER=ALIAS`, `SERVER=COUNTRY`, `SERVER=LOCATION` or `SERVER=SMART`
+You can choose which location ExpressVPN should connect to by setting `SERVER` to a region name or `smart`.
 
-You can check available locations from inside the container by running `expressvpn list all` command.
+You can check available locations from inside the container by running `expressvpnctl get regions`.
