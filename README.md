@@ -1,209 +1,107 @@
 # ExpressVPN
 
-Container-based on [polkaned/expressvpn](https://github.com/polkaned/dockerfiles/tree/master/expressvpn) version. This is my attempt mostly to learn more about docker.
+Container based on [polkaned/expressvpn](https://github.com/polkaned/dockerfiles/tree/master/expressvpn) with additional features and automation.
 
-## FEATURES
+## Table of Contents
 
-- **Latest Libraries**: All system packages are upgraded to their newest versions during build for enhanced security and compatibility
-- **Single Distribution**: Targets `debian trixie-slim` on `amd64` only
-- **Automatic Package Updates**: Built-in `apt-get upgrade` ensures the latest security patches and bug fixes
-- **ExpressVPN 5.x CLI**: Uses the headless-friendly `expressvpnctl` workflow and universal `.run` installer
+- [Features](#features)
+- [Quickstart (docker run)](#quickstart-docker-run)
+- [Docker Compose](#docker-compose)
+- [Configuration](#configuration)
+- [Protocols](#protocols)
+- [Network Lock and LAN Access](#network-lock-and-lan-access)
+- [SOCKS5 Proxy](#socks5-proxy)
+- [Control Server API](#control-server-api)
+- [Prometheus Metrics](#prometheus-metrics)
+- [Healthcheck](#healthcheck)
+- [DNS Leak Check](#dns-leak-check)
+- [Servers Available](#servers-available)
+- [Building](#building)
+- [Download](#download)
 
-## TAGS
+## Features
 
-Latest tag is based on `debian trixie-slim` on `amd64`.
-Numbers in the tag corresponds to ExpressVPN version.
+- ExpressVPN 5.x CLI (`expressvpnctl`) with headless activation.
+- Automatic activation via `CODE` and background mode enable.
+- Protocol selection with validation.
+- Network Lock support with optional LAN access and routed subnets.
+- SOCKS5 proxy (microsocks) with auth and whitelist support.
+- Prometheus metrics exporter with `/metrics` or custom `.cgi` path.
+- Optional control server API to query status and control connections.
+- Healthcheck with optional DDNS/IP validation and healthchecks.io support.
+- DNS whitelist for custom resolvers.
+- Built on `debian:trixie-slim` (amd64) with updated system packages.
 
-## PROTOCOL
-
-You can change it by env variable `PROTOCOL`.
-
-Available protocols:
-- `auto`
-- `lightwayudp` - default value
-- `lightwaytcp`
-- `openvpnudp`
-- `openvpntcp`
-- `wireguard`
-
-## NETWORK_LOCK
-
-Currently, `network_lock` is turned on by default but in case of any issues you can turn it off by setting env variable `NETWORK` to `off`.
-In most cases when `network_lock` cannot be used it is caused by old kernel version. Apparently, the minimum kernel version where `network_lock` is supported is **4.9**.
-
-*A script is included that checks if the host's kernel version meets minimum requirements to allow `network_lock`. If not and the user sets or leaves the default setting `network_lock` to `on`, then `network_lock` will be disabled to allow expressvpn to run.*
-
-## ALLOW_LAN
-By default `ALLOW_LAN=true` to allow access to services over your LAN while Network Lock is on. Set `ALLOW_LAN=false` to block LAN access.
-If you need access from your LAN while the VPN is connected, set `LAN_CIDR` to your local subnet so return traffic routes correctly (e.g. `LAN_CIDR=192.168.55.0/24`).
-
-## ACTIVATION (HEADLESS)
-This image uses the ExpressVPN 5.x CLI (`expressvpnctl`) under the hood. Activation is handled automatically from the `CODE` environment variable.
-The CLI requires background mode for headless use, and this is enabled during startup.
-
-## WHITELIST_DNS
-
-New env is available. It can be used like in the examples below and it is a comma seperated list of dns servers you wish to use and whitelist via iptables. Don't use it or leave empty for default behavior.
-Added by [phynias](https://github.com/phynias), thank you!
-
-## HEALTHCHECK
-Healthcheck is performed once every 2min.
-You can also add `--env=DDNS=domain` or `--env=IP=yourIP` to docker run command or in the environment section of compose in order to perform healthcheck which will be checking if data from env variable DDNS or IP is different than ExpressVPN's IP.
-If you won't set any of them, by default healthcheck will return status `healthy`.
-Also, there is a possibility to add `--env=BEAERER=access_token` from [ipinfo.io](https://ipinfo.io/) if you have an account there (free plan gives you 50k requests per month).
-
-Additionally, healthchecks.io support has been added and you can add the id of the healthchecks link to the `HEALTHCHECK` variable in docker configs.
-DDNS or IP must be set for ipinfo.io and healthcheck.io to work. 
-
-## DNS LEAKING CHECK
-In order to avoid DNS leaking, you have to replace `resolv.conf` on other containers that uses this one to connect to the network with the `resolv.conf` from expressvpn after it connects.
-
-In order to test if DNS is leaking you can use the following script from [macvk/dnsleaktest](https://github.com/macvk/dnsleaktest) repo and run it inside the container for example:
-
-`curl -s https://raw.githubusercontent.com/macvk/dnsleaktest/refs/heads/master/dnsleaktest.sh | docker exec -i expressvpn bash -s`
-
-If you do not know how to replace the `resolv.conf` file. [polkaned/expressvpn](https://github.com/polkaned/dockerfiles/tree/master/expressvpn) provides a simple way to do it.
-Just a note, `resolv.conf` might need to be copied over to other containers each time expressvpn reconnects.
-
-## SOCKS5
-Environment variables for SOCKS5
-
-| ENV|Desciption|Value|
-| :--- |:---| :---:|
-| SOCKS|Enable/disable socks5|off|
-| SOCKS_IP|Socks IP|0.0.0.0|
-| SOCKS_PORT|Socks port|1080|
-| SOCKS_USER|Socks username|None|
-| SOCKS_PASS|Socks password|None|
-| SOCKS_WHITELIST|**(User&Pass required)** Comma-separated whitelist of ip addresses, that may use the proxy without user/pass authentication|None|
-| SOCKS_AUTH_ONCE|**(User&Pass required)** Once a specific ip address is authed successfully with user/pass, it is added to a whitelist and may use the proxy without auth|false|
-| SOCKS_LOGS|Enable/disable logging|on|
-
-## PROMETHEUS METRICS (OPTIONAL)
-Enable the metrics exporter with:
-- `METRICS_PROMETHEUS=on`
-- `METRICS_PORT=9797`
-- `METRICS_PATH=/metrics.cgi`
-
-Expose the port (e.g., `-p 9797:9797`) and scrape `/metrics.cgi` or `/metrics`.
-
-## CONTROL SERVER (OPTIONAL)
-Enable the HTTP control API with:
-- `CONTROL_SERVER=on`
-- `CONTROL_IP=0.0.0.0`
-- `CONTROL_PORT=8000`
-
-Optional auth config file can be mounted to `/expressvpn/config.toml`. See `files/config.toml.example`.
-
-
-
-## BUILDING
-
-To build the container locally with the latest changes:
+## Quickstart (docker run)
 
 ```bash
-# Build with default trixie-slim distribution on amd64
-./expressbuild.sh 5.0.1.11498 test-repo
+docker run \
+  --env=CODE=code \
+  --env=SERVER=smart \
+  --cap-add=NET_ADMIN \
+  --device=/dev/net/tun \
+  --privileged \
+  --detach=true \
+  --tty=true \
+  --name=expressvpn \
+  --publish 1080:1080 \
+  --publish 8000:8000 \
+  --publish 9797:9797 \
+  --env=PROTOCOL=lightwayudp \
+  --env=ALLOW_LAN=true \
+  --env=LAN_CIDR=192.168.55.0/24 \
+  --env=METRICS_PROMETHEUS=on \
+  --env=CONTROL_SERVER=on \
+  --env=SOCKS=off \
+  misioslav/expressvpn \
+  /bin/bash
 ```
 
-## Download
+Another container using the VPN network:
 
-`docker pull misioslav/expressvpn`
-
-## Start the container
-
-```
-    docker run \
-    --env=CODE=code \
-    --env=SERVER=smart \
-    --cap-add=NET_ADMIN \
-    --device=/dev/net/tun \
-    --privileged \
-    --detach=true \
-    --tty=true \
-    --name=expressvpn \
-    --publish 80:80 \ #optional
-    --publish 1080:1080 \ #optional for socks5
-    --publish 8000:8000 \ #optional control server
-    --publish 9797:9797 \ #optional metrics
-    --env=DDNS=domain \ #optional
-    --env=IP=yourIp \ #optional
-    --env=BEARER=ipInfoAccessToken \ #optional
-    --env=NETWORK=on/off \ #optional set to on by default
-    --env=ALLOW_LAN=true \ #optional allow LAN access while Network Lock is on
-    --env=LAN_CIDR=192.168.55.0/24 \ #optional LAN subnet for return routing
-    --env=PROTOCOL=lightwayudp \ #optional set default to lightwayudp see protocol section for more information
-    --env=WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8 \ #optional
-    --env=METRICS_PROMETHEUS=on \ #optional
-    --env=CONTROL_SERVER=on \ #optional
-    --env=SOCKS=off \ #optional
-    --env=SOCKS_IP=0.0.0.0 \ #optional
-    --env=SOCKS_PORT=1080 \ #optional
-    --env=SOCKS_USER=someuser \ #optional (required if providing password)
-    --env=SOCKS_PASS=somepass \ #optional (required if providing username)
-    --env=SOCKS_WHITELIST=192.168.1.1 \ #optional
-    --env=SOCKS_AUTH_ONCE=false \ #optional
-    --env=SOCKS_LOGS=true \ #optional
-    misioslav/expressvpn \
-    /bin/bash
-```
-
-
-Another container that will use ExpressVPN network:
-
-```
-    docker run \
-    --name=example \
-    --net=container:expressvpn \
-    maintainer/example:version
+```bash
+docker run \
+  --name=example \
+  --net=container:expressvpn \
+  maintainer/example:version
 ```
 
 ## Docker Compose
 
-```
+```yaml
 services:
-
   example:
     image: maintainer/example:version
     container_name: example
     network_mode: service:expressvpn
     depends_on:
       expressvpn:
-        condition: service_healthy # This forces the dependent container to wait for the expressvpn container to report healthy. It helps prevent traffic before expressvpn is connected.
+        condition: service_healthy
 
   expressvpn:
     image: misioslav/expressvpn:latest
     container_name: expressvpn
     restart: unless-stopped
-    ports: # ports from which container that uses expressvpn connection will be available in local network
-      - 80:80 # example & optional
-      - 1080:1080 # example & optional, commonly used socks5 port
-      - 8000:8000 # optional control server
-      - 9797:9797 # optional metrics
+    ports:
+      - 1080:1080 # socks5 (optional)
+      - 8000:8000 # control server (optional)
+      - 9797:9797 # metrics (optional)
     environment:
-      # - WHITELIST_DNS=192.168.1.1,1.1.1.1,8.8.8.8  # optional - Comma seperated list of dns servers you wish to use and whitelist via iptables. DO NOT set this unless you know what you are doing. Whitelisting could cause traffic to circumvent the VPN and cause a DNS leak.
-      - CODE=code # Activation Code from ExpressVPN https://www.expressvpn.com/support/troubleshooting/find-activation-code/
-      - SERVER=smart # By default container will connect to smart location, list of available locations you can find below
-      - DDNS=yourDdnsDomain # optional
-      - IP=yourStaticIp # optional - won't work if DDNS is setup
-      #### These will only work if DDNS or IP are set. ####
-      - BEAERER=ipInfoAccessToken # optional can be taken from ipinfo.io
-      - HEALTHCHECK=healthchecks.ioId # optional can be taken from healthchecks.io
-      #####################################################
-      - NETWORK=off/on #optional and set to on by default (This is the killswitch)
-      - ALLOW_LAN=true #optional allow LAN access while Network Lock is on
-      - LAN_CIDR=192.168.55.0/24 #optional LAN subnet for return routing
-      - PROTOCOL=lightwayudp #optional set default to lightwayudp see protocol section for more information
-      - METRICS_PROMETHEUS=on # optional
-      - CONTROL_SERVER=on # optional
-      - SOCKS=off #optional set default to off see socks5 section for more information
-      - SOCKS_IP=0.0.0.0 #optional set default to 0.0.0.0 
-      - SOCKS_PORT=1080 #optional set default to 1080 
-      - SOCKS_USER=someuser #optional set default to NONE 
-      - SOCKS_PASS=somepass #optional set default to NONE 
-      - SOCKS_WHITELIST=192.168.1.1 #optional set default to NONE 
-      - SOCKS_AUTH_ONCE=false #optional set default to false 
-      - SOCKS_LOGS=true #optional set default to true 
+      - CODE=code
+      - SERVER=smart
+      - PROTOCOL=lightwayudp
+      - ALLOW_LAN=true
+      - LAN_CIDR=192.168.55.0/24
+      - METRICS_PROMETHEUS=on
+      - CONTROL_SERVER=on
+      - SOCKS=off
+      # Optional healthcheck/IP validation
+      # - DDNS=yourDdnsDomain
+      # - IP=yourStaticIp
+      # - BEARER=ipInfoAccessToken
+      # - HEALTHCHECK=healthchecks.ioId
+      # Optional DNS whitelist
+      # - WHITELIST_DNS=192.168.1.1,1.1.1.1
     cap_add:
       - NET_ADMIN
     devices:
@@ -214,8 +112,189 @@ services:
     privileged: true
 ```
 
-## SERVERS AVAILABLE
+## Configuration
 
-You can choose which location ExpressVPN should connect to by setting `SERVER` to a region name or `smart`.
+Environment variables (defaults shown):
 
-You can check available locations from inside the container by running `expressvpnctl get regions`.
+| ENV | Description | Default |
+| :--- | :--- | :---: |
+| CODE | ExpressVPN activation code | code |
+| SERVER | Region name or `smart` | smart |
+| PROTOCOL | VPN protocol | lightwayudp |
+| NETWORK | Network Lock (`on`/`off`) | on |
+| ALLOW_LAN | Allow LAN access while Network Lock is on | true |
+| LAN_CIDR | Comma-separated LAN CIDRs for return routes | (empty) |
+| WHITELIST_DNS | Comma-separated DNS servers to allow via iptables | (empty) |
+| DDNS | Domain to compare with ExpressVPN public IP for healthcheck | (empty) |
+| IP | Static IP to compare with ExpressVPN public IP for healthcheck | (empty) |
+| BEARER | ipinfo.io bearer token (healthcheck and `/v1/ip`) | (empty) |
+| HEALTHCHECK | healthchecks.io UUID | (empty) |
+| METRICS_PROMETHEUS | Enable metrics exporter (`on`/`off`) | off |
+| METRICS_PORT | Metrics port | 9797 |
+| METRICS_PATH | Metrics path (absolute, ends with `.cgi`) | /metrics.cgi |
+| CONTROL_SERVER | Enable control server (`on`/`off`) | off |
+| CONTROL_IP | Control server bind IP | 0.0.0.0 |
+| CONTROL_PORT | Control server port | 8000 |
+| AUTH_CONFIG | Auth config file path | /expressvpn/config.toml |
+| SOCKS | Enable SOCKS5 proxy (`on`/`off`) | off |
+| SOCKS_IP | SOCKS bind IP | 0.0.0.0 |
+| SOCKS_PORT | SOCKS port | 1080 |
+| SOCKS_USER | SOCKS username | (empty) |
+| SOCKS_PASS | SOCKS password | (empty) |
+| SOCKS_WHITELIST | Comma-separated IPs bypassing auth | (empty) |
+| SOCKS_AUTH_ONCE | Cache auth by IP (`true`/`false`) | false |
+| SOCKS_LOGS | Enable microsocks logs (`true`/`false`) | true |
+
+## Protocols
+
+Supported values for `PROTOCOL`:
+
+- auto
+- lightwayudp (default)
+- lightwaytcp
+- openvpnudp
+- openvpntcp
+- wireguard
+
+## Network Lock and LAN Access
+
+- Network Lock is enabled by default (`NETWORK=on`).
+- If your kernel does not support Network Lock (minimum 4.9), it will be disabled at runtime.
+- `ALLOW_LAN=true` lets LAN traffic through while Network Lock is on.
+- Set `LAN_CIDR` (comma-separated) to add return routes for your LAN subnets.
+
+## SOCKS5 Proxy
+
+Enable the SOCKS5 proxy with:
+
+- `SOCKS=on`
+- Optional auth: set both `SOCKS_USER` and `SOCKS_PASS`
+- Optional whitelist: `SOCKS_WHITELIST=ip1,ip2`
+- Optional cache: `SOCKS_AUTH_ONCE=true`
+
+## Control Server API
+
+Enable the control API with:
+
+- `CONTROL_SERVER=on`
+- `CONTROL_IP=0.0.0.0`
+- `CONTROL_PORT=8000`
+
+### Endpoints
+
+| Method | Path | Description |
+| :--- | :--- | :--- |
+| GET | /v1/status | Connection status, server, IP |
+| GET | /v1/servers | List available regions |
+| GET | /v1/ip | Public IP info (uses `BEARER` if set) |
+| GET | /v1/dns | Resolver info and `/etc/resolv.conf` |
+| GET | /v1/dnsleak | DNS leak test result |
+| GET | /v1/health | API health check |
+| POST | /v1/connect | Connect to server (JSON: `{ "server": "smart" }`) |
+| POST | /v1/disconnect | Disconnect from VPN |
+
+### Authentication
+
+Mount a TOML file at `/expressvpn/config.toml` (or change `AUTH_CONFIG`). Example:
+
+```toml
+[[roles]]
+name = "admin"
+routes = ["GET /v1/status", "GET /v1/servers", "GET /v1/dns", "GET /v1/ip", "GET /v1/dnsleak", "POST /v1/connect", "POST /v1/disconnect", "GET /v1/health"]
+auth = "basic"
+username = "admin"
+password = "changeme"
+
+[[roles]]
+name = "api_user"
+routes = ["GET /v1/status", "POST /v1/connect", "POST /v1/disconnect"]
+auth = "api_key"
+api_key = "your-secret-api-key"
+```
+
+If the config file is missing, a single role can be defined via environment variables:
+
+- `CONTROL_AUTH_TYPE` (`basic`, `api_key`, or `none`)
+- `CONTROL_AUTH_NAME`
+- `CONTROL_AUTH_USER`
+- `CONTROL_AUTH_PASSWORD`
+- `CONTROL_API_KEY`
+- `CONTROL_AUTH_ROUTES` (comma-separated `METHOD /path`, default `*`)
+
+Example request:
+
+```bash
+curl -u admin:changeme http://localhost:8000/v1/status
+```
+
+## Prometheus Metrics
+
+Enable metrics with:
+
+- `METRICS_PROMETHEUS=on`
+- `METRICS_PORT=9797`
+- `METRICS_PATH=/metrics.cgi` (absolute and must end with `.cgi`)
+
+Metrics are served on `/metrics.cgi` (or `/metrics`) at the configured port.
+If the embedded `httpd` cannot bind the port, a socat fallback server is started.
+
+### Exported metrics
+
+- `expressvpn_connection_status` (0/1)
+- `expressvpn_connection_info{server,protocol,network_lock}`
+- `expressvpn_vpn_interface_info{interface}`
+- `expressvpn_network_rx_bytes_total{interface}`
+- `expressvpn_network_tx_bytes_total{interface}`
+- `expressvpn_network_rx_packets_total{interface}`
+- `expressvpn_network_tx_packets_total{interface}`
+
+### Prometheus scrape config example
+
+```yaml
+scrape_configs:
+  - job_name: expressvpn
+    metrics_path: /metrics.cgi
+    static_configs:
+      - targets: ["expressvpn:9797"]
+```
+
+## Healthcheck
+
+The container healthcheck runs every 2 minutes.
+
+- Set `DDNS` or `IP` to compare against the ExpressVPN public IP.
+- Optional `BEARER` (ipinfo.io token) improves reliability.
+- Optional `HEALTHCHECK` posts status to healthchecks.io.
+
+If `DDNS` or `IP` are not set, the healthcheck is always healthy.
+
+## DNS Leak Check
+
+To avoid DNS leaks, update dependent containers to use the `resolv.conf` from this container after connect.
+
+Run the DNS leak test inside the container:
+
+```bash
+curl -s https://raw.githubusercontent.com/macvk/dnsleaktest/refs/heads/master/dnsleaktest.sh | docker exec -i expressvpn bash -s
+```
+
+## Servers Available
+
+Set `SERVER=smart` or any region name.
+List regions from inside the container:
+
+```bash
+expressvpnctl get regions
+```
+
+## Building
+
+```bash
+./expressbuild.sh 5.0.1.11498 test-repo
+```
+
+## Download
+
+```bash
+docker pull misioslav/expressvpn
+```

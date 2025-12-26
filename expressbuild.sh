@@ -6,7 +6,7 @@ set -euo pipefail
 
 usage() {
     echo "Usage: $0 <version> <repository> [tag] [action]"
-    echo "Defaults: tag=latest, action=load"
+    echo "Defaults: tag=latest, action=push"
     echo "Action: 'load' (local) or 'push' (to registry)"
     exit 1
 }
