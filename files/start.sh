@@ -234,6 +234,7 @@ start_control_server() {
     fi
 
     log "Starting ExpressVPN control server on ${CONTROL_IP:-0.0.0.0}:${CONTROL_PORT:-8000}"
+    chmod +x /expressvpn/control-server.sh 2>/dev/null || true
     /expressvpn/control-server.sh &
     allow_inbound_port "${CONTROL_PORT:-8000}"
 }
