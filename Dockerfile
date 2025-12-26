@@ -4,7 +4,6 @@ FROM debian:${DISTRIBUTION} AS microsocks-builder
 
 RUN set -eux; \
     apt-get update; \
-    apt-get upgrade -y; \
     apt-get install -y --no-install-recommends build-essential git ca-certificates; \
     git clone --depth 1 https://github.com/rofl0r/microsocks.git /tmp/microsocks; \
     make -C /tmp/microsocks; \
@@ -48,7 +47,6 @@ COPY --from=microsocks-builder /usr/local/bin/microsocks /usr/local/bin/microsoc
 RUN set -eux; \
     export DEBIAN_FRONTEND=noninteractive; \
     apt-get update; \
-    apt-get upgrade -y; \
     apt-get install -y --no-install-recommends \
         curl \
         ca-certificates \
@@ -56,9 +54,6 @@ RUN set -eux; \
         jq \
         iptables \
         iputils-ping \
-        net-tools \
-        procps \
-        psmisc \
         libatomic1 \
         libglib2.0-0 \
         busybox \
@@ -71,6 +66,6 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*; \
     rm -rf /var/log/*.log
 
-HEALTHCHECK --start-period=30s --timeout=5s --interval=2m --retries=3 CMD bash /expressvpn/healthcheck.sh
+HEALTHCHECK --start-period=30s --timeout=10s --interval=2m --retries=3 CMD bash /expressvpn/healthcheck.sh
 
 ENTRYPOINT ["/bin/bash", "/expressvpn/start.sh"]
