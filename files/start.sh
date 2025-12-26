@@ -171,9 +171,40 @@ apply_dns_whitelist() {
     local dns_list="${WHITELIST_DNS:-}"
     [[ -z "$dns_list" ]] && return
 
+    if ! command -v iptables >/dev/null 2>&1; then
+        log "iptables not available; skipping DNS whitelist."
+        return
+    fi
+
+    local chain="xvpn_dns_ip_exceptions"
+    local attempt
+    for attempt in $(seq 1 10); do
+        if iptables -S "$chain" >/dev/null 2>&1; then
+            break
+        fi
+        sleep 1
+    done
+
+    if ! iptables -S "$chain" >/dev/null 2>&1; then
+        if iptables -N "$chain" >/dev/null 2>&1; then
+            log "Created DNS whitelist chain ${chain} (network lock not ready yet)."
+        fi
+    fi
+
+    if ! iptables -S "$chain" >/dev/null 2>&1; then
+        log "DNS whitelist chain ${chain} not available; skipping DNS whitelist."
+        return
+    fi
+
+    iptables -C OUTPUT -j "$chain" >/dev/null 2>&1 || \
+        iptables -I OUTPUT 1 -j "$chain" >/dev/null 2>&1 || \
+        log "Failed to attach DNS whitelist chain ${chain} to OUTPUT."
+
     dns_list="${dns_list//,/ }"
     for addr in $dns_list; do
-        iptables -A xvpn_dns_ip_exceptions -d "${addr}"/32 -p udp -m udp --dport 53 -j ACCEPT
+        iptables -C "$chain" -d "${addr}"/32 -p udp -m udp --dport 53 -j ACCEPT 2>/dev/null || \
+            iptables -A "$chain" -d "${addr}"/32 -p udp -m udp --dport 53 -j ACCEPT || \
+            log "Failed to whitelist DNS server via ${chain}: ${addr}"
         log "Allowing DNS server traffic in iptables: ${addr}"
     done
 }

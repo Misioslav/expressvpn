@@ -6,10 +6,12 @@ RUN set -eux; \
     apt-get update; \
     apt-get upgrade -y; \
     apt-get install -y --no-install-recommends build-essential git ca-certificates; \
-    git clone https://github.com/rofl0r/microsocks.git /tmp/microsocks; \
+    git clone --depth 1 https://github.com/rofl0r/microsocks.git /tmp/microsocks; \
     make -C /tmp/microsocks; \
     strip /tmp/microsocks/microsocks; \
+    mv /tmp/microsocks/microsocks /usr/local/bin/microsocks; \
     apt-get purge -y --auto-remove build-essential git; \
+    rm -rf /tmp/microsocks; \
     rm -rf /var/lib/apt/lists/*
 
 FROM debian:${DISTRIBUTION}
@@ -41,7 +43,7 @@ ENV CODE="code" \
 ARG EXPRESSVPN_VERSION="5.0.1.11498"
 ARG EXPRESSVPN_RUN_URL="https://www.expressvpn.works/clients/linux/expressvpn-linux-universal-${EXPRESSVPN_VERSION}.run"
 COPY files/ /expressvpn/
-COPY --from=microsocks-builder /tmp/microsocks/microsocks /usr/local/bin/microsocks
+COPY --from=microsocks-builder /usr/local/bin/microsocks /usr/local/bin/microsocks
 
 RUN set -eux; \
     export DEBIAN_FRONTEND=noninteractive; \
@@ -62,9 +64,7 @@ RUN set -eux; \
         busybox \
         socat \
         python3 \
-        python3-tomli
-
-RUN set -eux; \
+        python3-tomli; \
     curl -fsSL "${EXPRESSVPN_RUN_URL}" -o /tmp/expressvpn.run; \
     sh /tmp/expressvpn.run --accept --quiet --noprogress -- --no-gui --sysvinit; \
     rm -f /tmp/expressvpn.run; \
