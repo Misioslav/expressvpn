@@ -1,5 +1,9 @@
 # ExpressVPN
 
+Important notice: ExpressVPN has communicated that it will deprecate older versions on January 14th, 2026. See https://www.expressvpn.com/blog/update-expressvpn-to-stay-connected/
+
+Upcoming change: the `master` branch will be switched to the ExpressVPN v5 branch at the beginning of January. Track the migration branch at https://github.com/Misioslav/expressvpn/tree/v5-migration . If you want to test the image earlier, you can use `misioslav/expressvpn:5.0.1.11498`.
+
 Container-based on [polkaned/expressvpn](https://github.com/polkaned/dockerfiles/tree/master/expressvpn) version. This is my attempt mostly to learn more about docker.
 
 ## FEATURES
