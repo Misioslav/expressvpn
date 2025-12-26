@@ -9,10 +9,6 @@ has_ctl() {
     command -v expressvpnctl >/dev/null 2>&1
 }
 
-xvpn_cmd() {
-    expressvpnctl "$@"
-}
-
 restore_resolver() {
     local resolv="/etc/resolv.conf"
 
@@ -48,18 +44,7 @@ restart_service() {
 }
 
 wait_for_daemon() {
-    local attempts=10
-    local delay=2
-    local attempt
-
-    for attempt in $(seq 1 "$attempts"); do
-        if xvpn_cmd status >/dev/null 2>&1; then
-            return 0
-        fi
-        sleep "$delay"
-    done
-
-    return 1
+    wait_for_condition 10 2 check_daemon
 }
 
 activate_account() {
@@ -111,21 +96,74 @@ set_protocol() {
     fi
 }
 
+wait_for_smart_location() {
+    local attempts=15
+    local delay=2
+    local attempt
+    local initial
+    local current
+
+    initial=$(expressvpnctl get smart 2>/dev/null || true)
+    [[ -z "$initial" ]] && return 0
+
+    for attempt in $(seq 1 "$attempts"); do
+        sleep "$delay"
+        current=$(expressvpnctl get smart 2>/dev/null || true)
+        if [[ -n "$current" && "$current" != "$initial" ]]; then
+            log "Smart location updated from ${initial} to ${current}"
+            return 0
+        fi
+    done
+
+    log "Smart location stayed at ${initial}; connecting anyway"
+}
+
+wait_for_condition() {
+    local attempts="$1"
+    local delay="$2"
+    local check_fn="$3"
+    local attempt
+
+    for attempt in $(seq 1 "$attempts"); do
+        if "$check_fn"; then
+            return 0
+        fi
+        sleep "$delay"
+    done
+
+    return 1
+}
+
+check_daemon() {
+    expressvpnctl status >/dev/null 2>&1
+}
+
+check_connected() {
+    [[ "$(expressvpnctl get connectionstate 2>/dev/null || true)" == "Connected" ]]
+}
+
 configure_preferences() {
     set_protocol "${PROTOCOL:-lightwayudp}"
     bash /expressvpn/uname.sh
     if ! expressvpnctl set allowlan "${ALLOW_LAN:-true}" >/dev/null 2>&1; then
         log "Unable to set allowlan to ${ALLOW_LAN:-true}"
     fi
-    if ! expressvpnctl set autoconnect true >/dev/null 2>&1; then
-        log "Unable to set autoconnect to true"
+    if ! expressvpnctl set autoconnect false >/dev/null 2>&1; then
+        log "Unable to set autoconnect to false"
     fi
 
-    if ! xvpn_cmd connect "${SERVER:-smart}"; then
+    expressvpnctl disconnect >/dev/null 2>&1 || true
+    if [[ "${SERVER:-smart}" == "smart" ]]; then
+        wait_for_smart_location
+    fi
+    if ! expressvpnctl connect "${SERVER:-smart}"; then
         log "Unable to connect to ${SERVER:-smart}"
         exit 1
     fi
     wait_for_connection
+    if ! expressvpnctl set autoconnect true >/dev/null 2>&1; then
+        log "Unable to set autoconnect to true"
+    fi
     apply_lan_routes
 }
 
@@ -271,16 +309,9 @@ apply_lan_routes() {
 }
 
 wait_for_connection() {
-    local attempts=15
-    local delay=2
-    local attempt
-    for attempt in $(seq 1 "$attempts"); do
-        if [[ "$(expressvpnctl get connectionstate 2>/dev/null || true)" == "Connected" ]]; then
-            return 0
-        fi
-        sleep "$delay"
-    done
-    log "Timed out waiting for VPN connection."
+    if ! wait_for_condition 15 2 check_connected; then
+        log "Timed out waiting for VPN connection."
+    fi
 }
 
 main() {

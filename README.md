@@ -241,7 +241,10 @@ If the embedded `httpd` cannot bind the port, a socat fallback server is started
 ### Exported metrics
 
 - `expressvpn_connection_status` (0/1)
+- `expressvpn_connection_state{state}`
 - `expressvpn_connection_info{server,protocol,network_lock}`
+- `expressvpn_vpn_ip_info{ip}`
+- `expressvpn_public_ip_info{ip}`
 - `expressvpn_vpn_interface_info{interface}`
 - `expressvpn_network_rx_bytes_total{interface}`
 - `expressvpn_network_tx_bytes_total{interface}`
@@ -257,6 +260,11 @@ scrape_configs:
     static_configs:
       - targets: ["expressvpn:9797"]
 ```
+
+### Grafana dashboard
+
+An example Grafana dashboard is provided at `files/expressvpn-grafana-dashboard.json`.
+Import it in Grafana and select your Prometheus datasource to view all exported metrics.
 
 ## Healthcheck
 
@@ -281,6 +289,8 @@ curl -s https://raw.githubusercontent.com/macvk/dnsleaktest/refs/heads/master/dn
 ## Servers Available
 
 Set `SERVER=smart` or any region name.
+On startup with `SERVER=smart`, the container waits briefly for the smart location
+to refresh before connecting, so the first connection aligns with the latest smart region.
 List regions from inside the container:
 
 ```bash
