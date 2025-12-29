@@ -366,7 +366,7 @@ get_public_ip() {
 run_dns_leak_test() {
     local raw_result
     local timeout_secs="${DNS_LEAK_TIMEOUT:-30}"
-    if ! raw_result=$(timeout -k 5 "$timeout_secs" bash /expressvpn/dnsleaktest.sh 2>&1); then
+    if ! raw_result=$(timeout -k 5 "$timeout_secs" env DNSLEAK_OUTPUT=json bash /expressvpn/dnsleaktest.sh 2>&1); then
         jq -n --arg error "DNS leak test failed" \
               --arg raw "$raw_result" \
               --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \

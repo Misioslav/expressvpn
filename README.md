@@ -200,6 +200,12 @@ Enable the control API with:
 | POST | /v1/connect | Connect to server (JSON: `{ "server": "smart" }`) |
 | POST | /v1/disconnect | Disconnect from VPN |
 
+The speed test endpoint uses `cloudflare-speed-cli` by kavehtehrani:
+https://github.com/kavehtehrani/cloudflare-speed-cli
+
+The DNS leak test script is using:
+https://github.com/macvk/dnsleaktest
+
 ### Authentication
 
 Mount a TOML file at `/expressvpn/config.toml` (or change `AUTH_CONFIG`). Example:
