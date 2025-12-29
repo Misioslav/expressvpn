@@ -53,7 +53,11 @@ uppercase() {
 }
 
 trim() {
-    printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+    if [[ $# -gt 0 ]]; then
+        printf '%s' "$1"
+    else
+        cat
+    fi | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
 load_auth_config() {
@@ -64,6 +68,8 @@ load_auth_config() {
     ROLE_KEYS=()
     ROLE_ROUTES=()
     ROLE_COUNT=0
+
+    AUTH_CONFIG_ERROR=""
 
     if [[ ! -f "$AUTH_CONFIG" ]]; then
         local env_auth="${CONTROL_AUTH_TYPE:-}"
@@ -124,18 +130,19 @@ for role in roles:
     auth = role.get("auth", "") or ""
     username = role.get("username", "") or ""
     password = role.get("password", "") or ""
-    api_key = role.get("api_key", "") or ""
+    api_key = role.get("api_key", "") or role.get("apikey", "") or ""
     routes = role.get("routes") or []
     encoded_routes = "\x1f".join(routes)
-    print("\t".join([name, auth, username, password, api_key, encoded_routes]))
+    print("\x1e".join([name, auth, username, password, api_key, encoded_routes]))
 PY
     ); then
         log "Failed to parse auth configuration at $AUTH_CONFIG"
         ROLE_COUNT=0
+        AUTH_CONFIG_ERROR="parse"
         return
     fi
 
-    while IFS=$'\t' read -r name auth username password api_key routes_line; do
+    while IFS=$'\x1e' read -r name auth username password api_key routes_line; do
         ROLE_NAMES+=("$name")
         ROLE_AUTH_TYPES+=("$auth")
         ROLE_USERS+=("$username")
@@ -171,6 +178,11 @@ extract_auth_value() {
     printf '%s' "$header" | sed -n 's/^[Aa]uthorization:[[:space:]]*//p'
 }
 
+extract_api_key() {
+    local header="$1"
+    printf '%s' "$header" | sed -n 's/^[Xx]-[Aa][Pp][Ii]-[Kk]ey:[[:space:]]*//p'
+}
+
 decode_basic_credentials() {
     local encoded="$1"
     printf '%s' "$encoded" | base64 -d 2>/dev/null || true
@@ -178,8 +190,9 @@ decode_basic_credentials() {
 
 check_auth() {
     local auth_header="$1"
-    local method="$2"
-    local path="$3"
+    local api_key_header="$2"
+    local method="$3"
+    local path="$4"
 
     load_auth_config
 
@@ -192,12 +205,21 @@ check_auth() {
     method_upper=$(uppercase "$method")
     local route="${method_upper} ${path}"
 
+    if [[ -n "$AUTH_CONFIG_ERROR" ]]; then
+        AUTH_FAILURE_STATUS="500 Internal Server Error"
+        AUTH_FAILURE_MESSAGE="Authentication configuration invalid"
+        AUTH_FAILURE_HEADER=""
+        return 1
+    fi
+
     if [[ "$ROLE_COUNT" -eq 0 ]]; then
         return 0
     fi
 
     local header_value route_allowed=false failure_header=""
     header_value=$(extract_auth_value "$auth_header")
+    local api_key_value=""
+    api_key_value=$(extract_api_key "$api_key_header")
 
     for (( idx=0; idx<ROLE_COUNT; idx++ )); do
         if ! role_allows_route "$idx" "$route"; then
@@ -206,6 +228,9 @@ check_auth() {
         route_allowed=true
 
         local auth_type="${ROLE_AUTH_TYPES[idx]}"
+        if [[ "$auth_type" == "apikey" ]]; then
+            auth_type="api_key"
+        fi
         case "$auth_type" in
             ""|"basic")
                 failure_header='WWW-Authenticate: Basic realm="ExpressVPN"'
@@ -224,8 +249,10 @@ check_auth() {
                 fi
                 ;;
             "api_key")
-                failure_header='WWW-Authenticate: Bearer realm="ExpressVPN"'
-                if [[ -z "$header_value" ]]; then
+                if [[ -n "$api_key_value" ]]; then
+                    if [[ "$api_key_value" == "${ROLE_KEYS[idx]}" && -n "$api_key_value" ]]; then
+                        return 0
+                    fi
                     continue
                 fi
                 if [[ "$header_value" =~ ^[Bb]earer[[:space:]]+(.+)$ ]]; then
@@ -391,16 +418,133 @@ health_status() {
         {status: $status, timestamp: $timestamp}'
 }
 
+get_vpn_status() {
+    local state="stopped"
+    local connection_state
+    connection_state=$(timeout 3s expressvpnctl get connectionstate 2>/dev/null | trim || true)
+    if [[ "$connection_state" == "Connected" ]]; then
+        state="running"
+    fi
+    jq -n --arg status "$state" '{status: $status}'
+}
+
+get_vpn_settings() {
+    local protocol="" region="" allowlan=""
+    protocol=$(timeout 3s expressvpnctl get protocol 2>/dev/null | trim || true)
+    region=$(timeout 3s expressvpnctl get region 2>/dev/null | trim || true)
+    allowlan=$(timeout 3s expressvpnctl get allowlan 2>/dev/null | trim || true)
+    jq -n --arg protocol "$protocol" \
+          --arg region "$region" \
+          --arg allowlan "$allowlan" \
+          '{protocol: $protocol, region: $region, allow_lan: $allowlan}'
+}
+
+UPDATE_STATUS_CODE="200 OK"
+
+update_vpn_settings() {
+    local body="$1"
+    local protocol region allow_lan
+    local errors=()
+    local applied=()
+
+    UPDATE_STATUS_CODE="200 OK"
+
+    if [[ -z "$body" ]]; then
+        UPDATE_STATUS_CODE="400 Bad Request"
+        jq -n --arg error "Missing JSON body" '{success: false, error: $error}'
+        return
+    fi
+
+    protocol=$(printf '%s' "$body" | jq -r '.protocol // empty' 2>/dev/null || printf '')
+    region=$(printf '%s' "$body" | jq -r '.region // empty' 2>/dev/null || printf '')
+    allow_lan=$(printf '%s' "$body" | jq -r '.allow_lan // empty' 2>/dev/null || printf '')
+
+    if [[ -z "$protocol" && -z "$region" && -z "$allow_lan" ]]; then
+        UPDATE_STATUS_CODE="400 Bad Request"
+        jq -n --arg error "No supported settings provided" '{success: false, error: $error}'
+        return
+    fi
+
+    if [[ -n "$protocol" ]]; then
+        protocol="${protocol,,}"
+        case "$protocol" in
+            auto|lightwayudp|lightwaytcp|openvpnudp|openvpntcp|wireguard) ;;
+            *)
+                UPDATE_STATUS_CODE="400 Bad Request"
+                jq -n --arg error "Unsupported protocol: ${protocol}" '{success: false, error: $error}'
+                return
+                ;;
+        esac
+        if expressvpnctl set protocol "$protocol" >/dev/null 2>&1; then
+            applied+=("protocol")
+        else
+            errors+=("protocol")
+        fi
+    fi
+
+    if [[ -n "$region" ]]; then
+        if expressvpnctl set region "$region" >/dev/null 2>&1; then
+            applied+=("region")
+        else
+            errors+=("region")
+        fi
+    fi
+
+    if [[ -n "$allow_lan" ]]; then
+        allow_lan="${allow_lan,,}"
+        if [[ "$allow_lan" != "true" && "$allow_lan" != "false" ]]; then
+            UPDATE_STATUS_CODE="400 Bad Request"
+            jq -n --arg error "allow_lan must be true or false" '{success: false, error: $error}'
+            return
+        fi
+        if expressvpnctl set allowlan "$allow_lan" >/dev/null 2>&1; then
+            applied+=("allow_lan")
+        else
+            errors+=("allow_lan")
+        fi
+    fi
+
+    local errors_json applied_json
+    errors_json=$(printf '%s\n' "${errors[@]}" | jq -R -s 'split("\n") | map(select(length>0))')
+    applied_json=$(printf '%s\n' "${applied[@]}" | jq -R -s 'split("\n") | map(select(length>0))')
+
+    if ((${#errors[@]} > 0)); then
+        UPDATE_STATUS_CODE="500 Internal Server Error"
+        jq -n --argjson errors "$errors_json" --argjson applied "$applied_json" \
+            '{success: false, errors: $errors, applied: $applied}'
+        return
+    fi
+
+    jq -n --argjson applied "$applied_json" '{success: true, applied: $applied}'
+}
+
+get_public_ip_short() {
+    local ip
+    ip=$(get_public_ip | jq -r '.ip // empty' 2>/dev/null || printf '')
+    jq -n --arg public_ip "$ip" '{public_ip: $public_ip}'
+}
+
+get_dns_status() {
+    local dns_entries
+    dns_entries=$(get_dns_info | jq -r '.dns_servers | length' 2>/dev/null || echo 0)
+    if [[ "$dns_entries" -gt 0 ]]; then
+        jq -n --arg status "running" '{status: $status}'
+    else
+        jq -n --arg status "stopped" '{status: $status}'
+    fi
+}
+
 handle_http_request() {
     local method="$1"
     local full_path="$2"
     local auth_header="$3"
-    local body="$4"
+    local api_key_header="$4"
+    local body="$5"
 
     local path="${full_path%%\?*}"
     [[ -z "$path" ]] && path="/"
 
-    if ! check_auth "$auth_header" "$method" "$path"; then
+    if ! check_auth "$auth_header" "$api_key_header" "$method" "$path"; then
         local error_body
         error_body=$(jq -n --arg error "$AUTH_FAILURE_MESSAGE" '{error: $error}')
         http_response "$AUTH_FAILURE_STATUS" "application/json" "$error_body" "$AUTH_FAILURE_HEADER"
@@ -414,11 +558,28 @@ handle_http_request() {
         "GET /v1/status")
             http_response "200 OK" "application/json" "$(get_expressvpn_status)"
             ;;
+        "GET /v1/vpn/status")
+            http_response "200 OK" "application/json" "$(get_vpn_status)"
+            ;;
+        "GET /v1/vpn/settings")
+            http_response "200 OK" "application/json" "$(get_vpn_settings)"
+            ;;
+        "POST /v1/vpn/settings")
+            local update_body
+            update_body=$(update_vpn_settings "$body")
+            http_response "${UPDATE_STATUS_CODE}" "application/json" "$update_body"
+            ;;
         "GET /v1/ip")
             http_response "200 OK" "application/json" "$(get_public_ip)"
             ;;
+        "GET /v1/publicip/ip")
+            http_response "200 OK" "application/json" "$(get_public_ip_short)"
+            ;;
         "GET /v1/dns")
             http_response "200 OK" "application/json" "$(get_dns_info)"
+            ;;
+        "GET /v1/dns/status")
+            http_response "200 OK" "application/json" "$(get_dns_status)"
             ;;
         "GET /v1/dnsleak")
             http_response "200 OK" "application/json" "$(run_dns_leak_test)"
@@ -452,7 +613,7 @@ handle_http_request() {
 }
 
 handle_connection() {
-    local request_line method path version header_line auth_header="" content_length=0 body=""
+    local request_line method path version header_line auth_header="" api_key_header="" content_length=0 body=""
 
     if ! IFS= read -r request_line; then
         return
@@ -469,6 +630,9 @@ handle_connection() {
             [Aa]uthorization:*)
                 auth_header="$header_line"
                 ;;
+            [Xx]-[Aa][Pp][Ii]-[Kk]ey:*)
+                api_key_header="$header_line"
+                ;;
             [Cc]ontent-[Ll]ength:*)
                 content_length=$(printf '%s' "$header_line" | awk -F': *' 'tolower($1)=="content-length"{print $2}' | tr -d $'\r\n')
                 ;;
@@ -482,7 +646,7 @@ handle_connection() {
     fi
 
     local response
-    response=$(handle_http_request "${method:-}" "${path:-/}" "$auth_header" "$body")
+    response=$(handle_http_request "${method:-}" "${path:-/}" "$auth_header" "$api_key_header" "$body")
     printf '%s' "$response"
 }
 

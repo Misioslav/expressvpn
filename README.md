@@ -185,9 +185,14 @@ Enable the control API with:
 | Method | Path | Description |
 | :--- | :--- | :--- |
 | GET | /v1/status | Connection status, server, IP |
+| GET | /v1/vpn/status | VPN status (`running`/`stopped`) |
+| GET | /v1/vpn/settings | VPN settings (protocol, region, allow_lan) |
+| POST | /v1/vpn/settings | Update VPN settings (protocol, region, allow_lan) |
 | GET | /v1/servers | List available regions |
 | GET | /v1/ip | Public IP info (uses `BEARER` if set) |
+| GET | /v1/publicip/ip | Public IP (`{"public_ip":"x.x.x.x"}`) |
 | GET | /v1/dns | Resolver info and `/etc/resolv.conf` |
+| GET | /v1/dns/status | DNS status (`running`/`stopped`) |
 | GET | /v1/dnsleak | DNS leak test result |
 | GET | /v1/health | API health check |
 | POST | /v1/connect | Connect to server (JSON: `{ "server": "smart" }`) |
@@ -208,8 +213,8 @@ password = "changeme"
 [[roles]]
 name = "api_user"
 routes = ["GET /v1/status", "POST /v1/connect", "POST /v1/disconnect"]
-auth = "api_key"
-api_key = "your-secret-api-key"
+auth = "apikey"
+apikey = "your-secret-api-key"
 ```
 
 If the config file is missing, a single role can be defined via environment variables:
@@ -225,6 +230,39 @@ Example request:
 
 ```bash
 curl -u admin:changeme http://localhost:8000/v1/status
+```
+
+For API key auth, send the key with:
+
+```bash
+curl -H "X-API-Key: your-secret-api-key" http://localhost:8000/v1/status
+```
+
+### Example usage
+
+Update VPN settings:
+
+```bash
+curl -X POST http://localhost:8000/v1/vpn/settings \
+  -H "Content-Type: application/json" \
+  -u admin:changeme \
+  -d '{"protocol":"lightwayudp","region":"smart","allow_lan":true}'
+```
+
+Connect to a region:
+
+```bash
+curl -X POST http://localhost:8000/v1/connect \
+  -H "Content-Type: application/json" \
+  -u admin:changeme \
+  -d '{"server":"germany-frankfurt-1"}'
+```
+
+Disconnect:
+
+```bash
+curl -X POST http://localhost:8000/v1/disconnect \
+  -u admin:changeme
 ```
 
 ## Prometheus Metrics

@@ -4,6 +4,7 @@ FROM debian:${DISTRIBUTION} AS microsocks-builder
 
 RUN set -eux; \
     apt-get update; \
+    apt-get upgrade -y; \
     apt-get install -y --no-install-recommends build-essential git ca-certificates; \
     git clone --depth 1 https://github.com/rofl0r/microsocks.git /tmp/microsocks; \
     make -C /tmp/microsocks; \
