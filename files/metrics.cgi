@@ -18,6 +18,9 @@ connected_since=0
 connect_attempts=0
 connect_failures=0
 state_changes=0
+last_rx_bytes=0
+last_tx_bytes=0
+last_net_ts=0
 
 state_update=false
 if mkdir "${state_lock}" 2>/dev/null; then
@@ -34,6 +37,9 @@ if [[ -f "${state_file}" ]]; then
       connect_attempts) connect_attempts="$value" ;;
       connect_failures) connect_failures="$value" ;;
       state_changes) state_changes="$value" ;;
+      last_rx_bytes) last_rx_bytes="$value" ;;
+      last_tx_bytes) last_tx_bytes="$value" ;;
+      last_net_ts) last_net_ts="$value" ;;
     esac
   done < "${state_file}"
 fi
@@ -104,17 +110,6 @@ if [[ ${connected} -eq 1 && ${connected_since} -gt 0 ]]; then
   connection_uptime=$((now_ts - connected_since))
 fi
 
-if [[ "$state_update" == "true" ]]; then
-  {
-    echo "last_state=${last_state}"
-    echo "last_state_ts=${last_state_ts}"
-    echo "connected_since=${connected_since}"
-    echo "connect_attempts=${connect_attempts}"
-    echo "connect_failures=${connect_failures}"
-    echo "state_changes=${state_changes}"
-  } > "${state_file}"
-fi
-
 # Fallbacks to env if not detectable
 : "${protocol_label:=${PROTOCOL:-}}"
 : "${network_lock_label:=}"
@@ -162,20 +157,58 @@ if [[ -n "$vpn_if" && -d "/sys/class/net/$vpn_if/statistics" ]]; then
     vpn_if_up=1
   fi
 
+  rx_rate=0
+  tx_rate=0
+  if [[ ${last_net_ts} -gt 0 && ${now_ts} -gt ${last_net_ts} ]]; then
+    dt=$((now_ts - last_net_ts))
+    rx_delta=$((rx_bytes - last_rx_bytes))
+    tx_delta=$((tx_bytes - last_tx_bytes))
+    if [[ ${rx_delta} -lt 0 ]]; then
+      rx_delta=0
+    fi
+    if [[ ${tx_delta} -lt 0 ]]; then
+      tx_delta=0
+    fi
+    rx_rate=$((rx_delta / dt))
+    tx_rate=$((tx_delta / dt))
+  fi
+
   printf 'expressvpn_vpn_interface_info{interface="%s"} 1\n' "${vpn_if}"
   printf 'expressvpn_vpn_interface_up{interface="%s"} %s\n' "${vpn_if}" "${vpn_if_up}"
   printf 'expressvpn_vpn_interface_mtu_bytes{interface="%s"} %s\n' "${vpn_if}" "${mtu}"
 
   printf 'expressvpn_network_rx_bytes_total{interface="%s"} %s\n' "${vpn_if}" "${rx_bytes}"
   printf 'expressvpn_network_tx_bytes_total{interface="%s"} %s\n' "${vpn_if}" "${tx_bytes}"
+  printf 'expressvpn_network_rx_bytes_per_second{interface="%s"} %s\n' "${vpn_if}" "${rx_rate}"
+  printf 'expressvpn_network_tx_bytes_per_second{interface="%s"} %s\n' "${vpn_if}" "${tx_rate}"
   printf 'expressvpn_network_rx_packets_total{interface="%s"} %s\n' "${vpn_if}" "${rx_pkts}"
   printf 'expressvpn_network_tx_packets_total{interface="%s"} %s\n' "${vpn_if}" "${tx_pkts}"
   printf 'expressvpn_network_rx_errors_total{interface="%s"} %s\n' "${vpn_if}" "${rx_errors}"
   printf 'expressvpn_network_tx_errors_total{interface="%s"} %s\n' "${vpn_if}" "${tx_errors}"
   printf 'expressvpn_network_rx_dropped_total{interface="%s"} %s\n' "${vpn_if}" "${rx_dropped}"
   printf 'expressvpn_network_tx_dropped_total{interface="%s"} %s\n' "${vpn_if}" "${tx_dropped}"
+
+  if [[ "$state_update" == "true" ]]; then
+    last_rx_bytes="${rx_bytes}"
+    last_tx_bytes="${tx_bytes}"
+    last_net_ts="${now_ts}"
+  fi
 else
   echo 'expressvpn_vpn_interface_info{interface=""} 0'
   echo 'expressvpn_vpn_interface_up{interface=""} 0'
   echo 'expressvpn_vpn_interface_mtu_bytes{interface=""} 0'
+fi
+
+if [[ "$state_update" == "true" ]]; then
+  {
+    echo "last_state=${last_state}"
+    echo "last_state_ts=${last_state_ts}"
+    echo "connected_since=${connected_since}"
+    echo "connect_attempts=${connect_attempts}"
+    echo "connect_failures=${connect_failures}"
+    echo "state_changes=${state_changes}"
+    echo "last_rx_bytes=${last_rx_bytes}"
+    echo "last_tx_bytes=${last_tx_bytes}"
+    echo "last_net_ts=${last_net_ts}"
+  } > "${state_file}"
 fi
