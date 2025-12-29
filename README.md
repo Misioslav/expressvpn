@@ -280,14 +280,25 @@ If the embedded `httpd` cannot bind the port, a socat fallback server is started
 
 - `expressvpn_connection_status` (0/1)
 - `expressvpn_connection_state{state}`
+- `expressvpn_connection_uptime_seconds`
+- `expressvpn_last_state_change_timestamp_seconds`
+- `expressvpn_state_changes_total`
+- `expressvpn_connect_attempts_total`
+- `expressvpn_connect_failures_total`
 - `expressvpn_connection_info{server,protocol,network_lock}`
 - `expressvpn_vpn_ip_info{ip}`
 - `expressvpn_public_ip_info{ip}`
 - `expressvpn_vpn_interface_info{interface}`
+- `expressvpn_vpn_interface_up{interface}`
+- `expressvpn_vpn_interface_mtu_bytes{interface}`
 - `expressvpn_network_rx_bytes_total{interface}`
 - `expressvpn_network_tx_bytes_total{interface}`
 - `expressvpn_network_rx_packets_total{interface}`
 - `expressvpn_network_tx_packets_total{interface}`
+- `expressvpn_network_rx_errors_total{interface}`
+- `expressvpn_network_tx_errors_total{interface}`
+- `expressvpn_network_rx_dropped_total{interface}`
+- `expressvpn_network_tx_dropped_total{interface}`
 
 ### Prometheus scrape config example
 
