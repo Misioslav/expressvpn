@@ -285,7 +285,7 @@ If the embedded `httpd` cannot bind the port, a socat fallback server is started
 - `expressvpn_state_changes_total`
 - `expressvpn_connect_attempts_total`
 - `expressvpn_connect_failures_total`
-- `expressvpn_connection_info{server,protocol,network_lock}`
+- `expressvpn_connection_info{server,connected_server,protocol,network_lock}`
 - `expressvpn_vpn_ip_info{ip}`
 - `expressvpn_public_ip_info{ip}`
 - `expressvpn_vpn_interface_info{interface}`

@@ -670,11 +670,13 @@
               "job": true
             },
             "indexByName": {
-              "network_lock": 2,
-              "protocol": 1,
+              "connected_server": 1,
+              "network_lock": 3,
+              "protocol": 2,
               "server": 0
             },
             "renameByName": {
+              "connected_server": "Connected Server",
               "network_lock": "Network Lock",
               "protocol": "Protocol",
               "server": "Server"

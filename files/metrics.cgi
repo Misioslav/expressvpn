@@ -42,6 +42,7 @@ fi
 connected=0
 connection_state=""
 server_label=""
+connected_server_label=""
 protocol_label=""
 network_lock_label=""
 vpn_ip_label=""
@@ -61,11 +62,12 @@ network_lock_label=$(timeout 3s expressvpnctl get networklock 2>/dev/null | trim
 vpn_ip_label=$(timeout 3s expressvpnctl get vpnip 2>/dev/null | trim || true)
 public_ip_label=$(timeout 3s expressvpnctl get pubip 2>/dev/null | trim || true)
 
-# Prefer the actual connected location from status; fall back to configured region.
+# Capture configured region and actual connected server (if any).
+server_label=$(timeout 3s expressvpnctl get region 2>/dev/null | trim || true)
 status_output=$(timeout 3s expressvpnctl status 2>/dev/null || true)
-server_label=$(printf '%s\n' "$status_output" | sed -n 's/^Connected to[: ]\{1,\}//p' | head -n1 | trim || true)
-if [[ -z "$server_label" ]]; then
-  server_label=$(timeout 3s expressvpnctl get region 2>/dev/null | trim || true)
+connected_server_label=$(printf '%s\n' "$status_output" | sed -n 's/^Connected to[: ]\{1,\}//p' | head -n1 | trim || true)
+if [[ -z "$connected_server_label" ]]; then
+  connected_server_label="$server_label"
 fi
 
 # 2b) Update stateful counters and timestamps
@@ -138,8 +140,8 @@ printf 'expressvpn_state_changes_total %s\n' "${state_changes}"
 printf 'expressvpn_connect_attempts_total %s\n' "${connect_attempts}"
 printf 'expressvpn_connect_failures_total %s\n' "${connect_failures}"
 # info metric with labels (strings go in labels)
-printf 'expressvpn_connection_info{server="%s",protocol="%s",network_lock="%s"} 1\n' \
-  "${server_label//\"/\\\"}" "${protocol_label//\"/\\\"}" "${network_lock_label//\"/\\\"}"
+printf 'expressvpn_connection_info{server="%s",connected_server="%s",protocol="%s",network_lock="%s"} 1\n' \
+  "${server_label//\"/\\\"}" "${connected_server_label//\"/\\\"}" "${protocol_label//\"/\\\"}" "${network_lock_label//\"/\\\"}"
 printf 'expressvpn_vpn_ip_info{ip="%s"} 1\n' "${vpn_ip_label//\"/\\\"}"
 printf 'expressvpn_public_ip_info{ip="%s"} 1\n' "${public_ip_label//\"/\\\"}"
 
