@@ -25,9 +25,6 @@ log() {
     echo "[control-server] $*" >&2
 }
 
-xvpn_cmd() {
-    expressvpnctl "$@"
-}
 
 http_response() {
     local status_code="$1"
@@ -286,7 +283,7 @@ check_auth() {
 
 get_expressvpn_status() {
     local status connected="false" server="" ip="" state=""
-    if status=$(xvpn_cmd status 2>/dev/null); then
+    if status=$(expressvpnctl status 2>/dev/null); then
         state=$(timeout 3s expressvpnctl get connectionstate 2>/dev/null | trim || true)
         if [[ "$state" == "Connected" ]]; then
             connected="true"
@@ -305,7 +302,7 @@ get_expressvpn_status() {
 
 get_servers() {
     local servers
-    if servers=$(xvpn_cmd get regions 2>/dev/null); then
+    if servers=$(expressvpnctl get regions 2>/dev/null); then
         printf '%s\n' "$servers" | jq -R -s 'split("\n") | map(select(length>0))'
     else
         jq -n '[]'
@@ -392,7 +389,7 @@ run_dns_leak_test() {
 
 run_cloudflare_speed_test() {
     local timeout_secs="${CLOUDFLARE_SPEED_TIMEOUT:-120}"
-    local output
+    local output json_output
 
     if ! command -v cloudflare-speed-cli >/dev/null 2>&1; then
         jq -n --arg error "cloudflare-speed-cli not installed" '{error: $error}'
@@ -407,21 +404,17 @@ run_cloudflare_speed_test() {
         return
     fi
 
-    if jq -e . >/dev/null 2>&1 <<<"$output"; then
-        printf '%s' "$output"
-        return
-    fi
-
-    jq -n --arg error "cloudflare-speed-cli returned non-JSON output" \
-          --arg raw "$output" \
-          --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-          '{error: $error, raw_output: $raw, timestamp: $timestamp}'
+    printf '%s' "$output" | awk '
+        /^Saved:[[:space:]]/ { exit }
+        { print }
+    '
+    return
 }
 
 connect_server() {
     local server="$1"
     local output success="false"
-    if output=$(xvpn_cmd connect "$server" 2>&1); then
+    if output=$(expressvpnctl connect "$server" 2>&1); then
         success="true"
     fi
 
@@ -432,7 +425,7 @@ connect_server() {
 
 disconnect_vpn() {
     local output success="false"
-    if output=$(xvpn_cmd disconnect 2>&1); then
+    if output=$(expressvpnctl disconnect 2>&1); then
         success="true"
     fi
 
