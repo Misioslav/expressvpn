@@ -136,6 +136,7 @@ Environment variables (defaults shown):
 | CONTROL_IP | Control server bind IP | 0.0.0.0 |
 | CONTROL_PORT | Control server port | 8000 |
 | AUTH_CONFIG | Auth config file path | /expressvpn/config.toml |
+| CLOUDFLARE_SPEED_TIMEOUT | Speed test timeout in seconds (control server) | 120 |
 | SOCKS | Enable SOCKS5 proxy (`on`/`off`) | off |
 | SOCKS_IP | SOCKS bind IP | 0.0.0.0 |
 | SOCKS_PORT | SOCKS port | 1080 |
@@ -194,6 +195,7 @@ Enable the control API with:
 | GET | /v1/dns | Resolver info and `/etc/resolv.conf` |
 | GET | /v1/dns/status | DNS status (`running`/`stopped`) |
 | GET | /v1/dnsleak | DNS leak test result |
+| GET | /v1/speedtest | Cloudflare speed test (`cloudflare-speed-cli --json`) |
 | GET | /v1/health | API health check |
 | POST | /v1/connect | Connect to server (JSON: `{ "server": "smart" }`) |
 | POST | /v1/disconnect | Disconnect from VPN |
@@ -205,7 +207,7 @@ Mount a TOML file at `/expressvpn/config.toml` (or change `AUTH_CONFIG`). Exampl
 ```toml
 [[roles]]
 name = "admin"
-routes = ["GET /v1/status", "GET /v1/servers", "GET /v1/dns", "GET /v1/ip", "GET /v1/dnsleak", "POST /v1/connect", "POST /v1/disconnect", "GET /v1/health"]
+routes = ["GET /v1/status", "GET /v1/servers", "GET /v1/dns", "GET /v1/ip", "GET /v1/dnsleak", "GET /v1/speedtest", "POST /v1/connect", "POST /v1/disconnect", "GET /v1/health"]
 auth = "basic"
 username = "admin"
 password = "changeme"

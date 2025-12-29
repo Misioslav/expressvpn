@@ -62,10 +62,14 @@ RUN set -eux; \
         busybox \
         socat \
         python3 \
-        python3-tomli; \
+        python3-tomli \
+        xz-utils; \
     curl -fsSL "${EXPRESSVPN_RUN_URL}" -o /tmp/expressvpn.run; \
     sh /tmp/expressvpn.run --accept --quiet --noprogress -- --no-gui --sysvinit; \
     rm -f /tmp/expressvpn.run; \
+    curl -fsSL "https://raw.githubusercontent.com/kavehtehrani/cloudflare-speed-cli/main/install.sh" | sh; \
+    mv /root/.local/bin/cloudflare-speed-cli /usr/local/bin/cloudflare-speed-cli; \
+    rmdir /root/.local/bin 2>/dev/null || true; \
     rm -rf /var/lib/apt/lists/*; \
     rm -rf /var/log/*.log
 

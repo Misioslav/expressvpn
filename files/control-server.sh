@@ -390,6 +390,34 @@ run_dns_leak_test() {
           '{dns_servers_found: $dns, ip_info: $ip, conclusion: $conclusion, raw_output: $raw, timestamp: $timestamp}'
 }
 
+run_cloudflare_speed_test() {
+    local timeout_secs="${CLOUDFLARE_SPEED_TIMEOUT:-120}"
+    local output
+
+    if ! command -v cloudflare-speed-cli >/dev/null 2>&1; then
+        jq -n --arg error "cloudflare-speed-cli not installed" '{error: $error}'
+        return
+    fi
+
+    if ! output=$(timeout -k 5 "$timeout_secs" cloudflare-speed-cli --json 2>&1); then
+        jq -n --arg error "cloudflare-speed-cli failed" \
+              --arg raw "$output" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              '{error: $error, raw_output: $raw, timestamp: $timestamp}'
+        return
+    fi
+
+    if jq -e . >/dev/null 2>&1 <<<"$output"; then
+        printf '%s' "$output"
+        return
+    fi
+
+    jq -n --arg error "cloudflare-speed-cli returned non-JSON output" \
+          --arg raw "$output" \
+          --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          '{error: $error, raw_output: $raw, timestamp: $timestamp}'
+}
+
 connect_server() {
     local server="$1"
     local output success="false"
@@ -583,6 +611,9 @@ handle_http_request() {
             ;;
         "GET /v1/dnsleak")
             http_response "200 OK" "application/json" "$(run_dns_leak_test)"
+            ;;
+        "GET /v1/speedtest")
+            http_response "200 OK" "application/json" "$(run_cloudflare_speed_test)"
             ;;
         "GET /v1/servers")
             http_response "200 OK" "application/json" "$(get_servers)"

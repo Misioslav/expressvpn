@@ -2,7 +2,7 @@
 
 [[roles]]
 name = "admin"
-routes = ["GET /v1/status", "GET /v1/vpn/status", "GET /v1/vpn/settings", "GET /v1/servers", "GET /v1/ip", "GET /v1/publicip/ip", "GET /v1/dns", "GET /v1/dns/status", "GET /v1/dnsleak", "POST /v1/connect", "POST /v1/disconnect", "GET /v1/health"]
+routes = ["GET /v1/status", "GET /v1/vpn/status", "GET /v1/vpn/settings", "GET /v1/servers", "GET /v1/ip", "GET /v1/publicip/ip", "GET /v1/dns", "GET /v1/dns/status", "GET /v1/dnsleak", "GET /v1/speedtest", "POST /v1/connect", "POST /v1/disconnect", "GET /v1/health"]
 auth = "basic"
 username = "admin"
 password = "changeme"
