@@ -208,7 +208,7 @@ https://github.com/macvk/dnsleaktest
 
 ### Authentication
 
-Mount a TOML file at `/expressvpn/config.toml` (or change `AUTH_CONFIG`). Example:
+Mount a TOML file at `/expressvpn/config.toml` (or change `AUTH_CONFIG`). Example file: [`example/config.toml.example`](example/config.toml.example).
 
 ```toml
 [[roles]]
@@ -320,7 +320,7 @@ scrape_configs:
 
 ### Grafana dashboard
 
-An example Grafana dashboard is provided at `files/expressvpn-grafana-dashboard.json`.
+An example Grafana dashboard is provided at [`example/expressvpn-grafana-dashboard.json`](example/expressvpn-grafana-dashboard.json).
 Import it in Grafana and select your Prometheus datasource to view all exported metrics.
 
 ## Healthcheck
