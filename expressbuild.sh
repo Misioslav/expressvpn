@@ -3,6 +3,7 @@ set -euo pipefail
 
 # ExpressVPN Docker Build Script
 # Builds ExpressVPN image for Debian trixie-slim on amd64
+# Builds ExpressVPN image for Debian trixie-slim on amd64
 
 usage() {
   echo "Usage: $0 <version> <repository> [tag] [action]"

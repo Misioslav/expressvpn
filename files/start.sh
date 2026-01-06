@@ -196,21 +196,16 @@ apply_dns_whitelist() {
         return
     fi
 
-    iptables -C OUTPUT -j "$chain" >/dev/null 2>&1 || \
-        iptables -I OUTPUT 1 -j "$chain" >/dev/null 2>&1 || \
-        log "Failed to attach DNS whitelist chain ${chain} to OUTPUT."
+    if ! iptables -C OUTPUT -j "$chain" >/dev/null 2>&1; then
+        if ! iptables -I OUTPUT 1 -j "$chain" >/dev/null 2>&1; then
+            log "Failed to attach DNS whitelist chain ${chain} to OUTPUT."
+        fi
+    fi
 
     dns_list="${dns_list//,/ }"
     for addr in $dns_list; do
-        iptables -C "$chain" -d "${addr}"/32 -p udp -m udp --dport 53 -j ACCEPT 2>/dev/null || \
-            iptables -A "$chain" -d "${addr}"/32 -p udp -m udp --dport 53 -j ACCEPT || \
-            log "Failed to whitelist DNS server via ${chain} (UDP): ${addr}"
-
-        iptables -C "$chain" -d "${addr}"/32 -p tcp -m tcp --dport 53 -j ACCEPT 2>/dev/null || \
-            iptables -A "$chain" -d "${addr}"/32 -p tcp -m tcp --dport 53 -j ACCEPT || \
-            log "Failed to whitelist DNS server via ${chain} (TCP): ${addr}"
-
-        log "Allowing DNS server traffic (UDP/TCP) in iptables: ${addr}"
+        iptables -A xvpn_dns_ip_exceptions -d "${addr}"/32 -p udp -m udp --dport 53 -j ACCEPT
+        log "Allowing DNS server traffic in iptables: ${addr}"
     done
 }
 
