@@ -23,7 +23,7 @@ last_tx_bytes=0
 last_net_ts=0
 
 state_update=false
-if mkdir "${state_lock}" 2>/dev/null; then
+if mkdir "${state_lock}" 2> /dev/null; then
   state_update=true
   trap 'rmdir "${state_lock}"' EXIT
 fi
@@ -54,23 +54,23 @@ network_lock_label=""
 vpn_ip_label=""
 public_ip_label=""
 
-state_label=$(timeout 3s expressvpnctl get connectionstate 2>/dev/null | trim || true)
+state_label=$(timeout 3s expressvpnctl get connectionstate 2> /dev/null | trim || true)
 case "$state_label" in
   Connected) connected=1 ;;
-  Disconnected|Connecting|Interrupted|Reconnecting|DisconnectingToReconnect|Disconnecting) ;;
+  Disconnected | Connecting | Interrupted | Reconnecting | DisconnectingToReconnect | Disconnecting) ;;
   *) ;;
 esac
 connection_state="$state_label"
 
 # 2) Determine preferences via expressvpnctl (best effort)
-protocol_label=$(timeout 3s expressvpnctl get protocol 2>/dev/null | trim || true)
-network_lock_label=$(timeout 3s expressvpnctl get networklock 2>/dev/null | trim || true)
-vpn_ip_label=$(timeout 3s expressvpnctl get vpnip 2>/dev/null | trim || true)
-public_ip_label=$(timeout 3s expressvpnctl get pubip 2>/dev/null | trim || true)
+protocol_label=$(timeout 3s expressvpnctl get protocol 2> /dev/null | trim || true)
+network_lock_label=$(timeout 3s expressvpnctl get networklock 2> /dev/null | trim || true)
+vpn_ip_label=$(timeout 3s expressvpnctl get vpnip 2> /dev/null | trim || true)
+public_ip_label=$(timeout 3s expressvpnctl get pubip 2> /dev/null | trim || true)
 
 # Capture configured region and actual connected server (if any).
-server_label=$(timeout 3s expressvpnctl get region 2>/dev/null | trim || true)
-status_output=$(timeout 3s expressvpnctl status 2>/dev/null || true)
+server_label=$(timeout 3s expressvpnctl get region 2> /dev/null | trim || true)
+status_output=$(timeout 3s expressvpnctl status 2> /dev/null || true)
 connected_server_label=$(printf '%s\n' "$status_output" | sed -n 's/^Connected to[: ]\{1,\}//p' | head -n1 | trim || true)
 if [[ -z "$connected_server_label" ]]; then
   connected_server_label="$server_label"
@@ -142,16 +142,16 @@ printf 'expressvpn_public_ip_info{ip="%s"} 1\n' "${public_ip_label//\"/\\\"}"
 
 # Interface metrics (only if detected)
 if [[ -n "$vpn_if" && -d "/sys/class/net/$vpn_if/statistics" ]]; then
-  rx_bytes=$(cat "/sys/class/net/$vpn_if/statistics/rx_bytes" 2>/dev/null || echo 0)
-  tx_bytes=$(cat "/sys/class/net/$vpn_if/statistics/tx_bytes" 2>/dev/null || echo 0)
-  rx_pkts=$(cat "/sys/class/net/$vpn_if/statistics/rx_packets" 2>/dev/null || echo 0)
-  tx_pkts=$(cat "/sys/class/net/$vpn_if/statistics/tx_packets" 2>/dev/null || echo 0)
-  rx_errors=$(cat "/sys/class/net/$vpn_if/statistics/rx_errors" 2>/dev/null || echo 0)
-  tx_errors=$(cat "/sys/class/net/$vpn_if/statistics/tx_errors" 2>/dev/null || echo 0)
-  rx_dropped=$(cat "/sys/class/net/$vpn_if/statistics/rx_dropped" 2>/dev/null || echo 0)
-  tx_dropped=$(cat "/sys/class/net/$vpn_if/statistics/tx_dropped" 2>/dev/null || echo 0)
-  mtu=$(cat "/sys/class/net/$vpn_if/mtu" 2>/dev/null || echo 0)
-  operstate=$(cat "/sys/class/net/$vpn_if/operstate" 2>/dev/null || echo "")
+  rx_bytes=$(cat "/sys/class/net/$vpn_if/statistics/rx_bytes" 2> /dev/null || echo 0)
+  tx_bytes=$(cat "/sys/class/net/$vpn_if/statistics/tx_bytes" 2> /dev/null || echo 0)
+  rx_pkts=$(cat "/sys/class/net/$vpn_if/statistics/rx_packets" 2> /dev/null || echo 0)
+  tx_pkts=$(cat "/sys/class/net/$vpn_if/statistics/tx_packets" 2> /dev/null || echo 0)
+  rx_errors=$(cat "/sys/class/net/$vpn_if/statistics/rx_errors" 2> /dev/null || echo 0)
+  tx_errors=$(cat "/sys/class/net/$vpn_if/statistics/tx_errors" 2> /dev/null || echo 0)
+  rx_dropped=$(cat "/sys/class/net/$vpn_if/statistics/rx_dropped" 2> /dev/null || echo 0)
+  tx_dropped=$(cat "/sys/class/net/$vpn_if/statistics/tx_dropped" 2> /dev/null || echo 0)
+  mtu=$(cat "/sys/class/net/$vpn_if/mtu" 2> /dev/null || echo 0)
+  operstate=$(cat "/sys/class/net/$vpn_if/operstate" 2> /dev/null || echo "")
   vpn_if_up=0
   if [[ "$operstate" == "up" ]]; then
     vpn_if_up=1
@@ -169,8 +169,8 @@ if [[ -n "$vpn_if" && -d "/sys/class/net/$vpn_if/statistics" ]]; then
     if [[ ${tx_delta} -lt 0 ]]; then
       tx_delta=0
     fi
-    rx_rate=$((rx_delta / dt))
-    tx_rate=$((tx_delta / dt))
+    rx_rate=$(awk "BEGIN {printf \"%.2f\", $rx_delta / $dt}")
+    tx_rate=$(awk "BEGIN {printf \"%.2f\", $tx_delta / $dt}")
   fi
 
   printf 'expressvpn_vpn_interface_info{interface="%s"} 1\n' "${vpn_if}"
