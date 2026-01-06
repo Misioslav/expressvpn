@@ -196,15 +196,15 @@ apply_dns_whitelist() {
         return
     fi
 
-    if ! iptables -C OUTPUT -j "$chain" >/dev/null 2>&1; then
-        if ! iptables -I OUTPUT 1 -j "$chain" >/dev/null 2>&1; then
-            log "Failed to attach DNS whitelist chain ${chain} to OUTPUT."
-        fi
-    fi
+    iptables -C OUTPUT -j "$chain" >/dev/null 2>&1 || \
+        iptables -I OUTPUT 1 -j "$chain" >/dev/null 2>&1 || \
+        log "Failed to attach DNS whitelist chain ${chain} to OUTPUT."
 
     dns_list="${dns_list//,/ }"
     for addr in $dns_list; do
-        iptables -A xvpn_dns_ip_exceptions -d "${addr}"/32 -p udp -m udp --dport 53 -j ACCEPT
+        iptables -C "$chain" -d "${addr}"/32 -p udp -m udp --dport 53 -j ACCEPT 2>/dev/null || \
+            iptables -A "$chain" -d "${addr}"/32 -p udp -m udp --dport 53 -j ACCEPT || \
+            log "Failed to whitelist DNS server via ${chain}: ${addr}"
         log "Allowing DNS server traffic in iptables: ${addr}"
     done
 }
@@ -332,16 +332,10 @@ apply_lan_routes() {
         log "Unable to determine default gateway for LAN routes."
         return
     fi
-    local default_iface
-    default_iface=$(ip route show default 2>/dev/null | awk 'NR==1 {print $5}')
-    if [[ -z "$default_iface" ]]; then
-        log "Unable to determine default network interface for LAN routes."
-        return
-    fi
     local cidr_list="${LAN_CIDR//,/ }"
     for cidr in $cidr_list; do
-        ip route replace "$cidr" via "$gateway" dev "$default_iface"
-        log "Added LAN route for ${cidr} via ${gateway} on ${default_iface}"
+        ip route replace "$cidr" via "$gateway" dev eth0
+        log "Added LAN route for ${cidr} via ${gateway}"
     done
 }
 

@@ -112,12 +112,6 @@ services:
     privileged: true
 ```
 
-## SERVERS AVAILABLE
-
-You can choose to which location ExpressVPN should connect to by setting up `SERVER=ALIAS`, `SERVER=COUNTRY`, `SERVER=LOCATION` or `SERVER=SMART`
-
-You can check available locations from inside the container by running `expressvpn list all` command.
-
 ## Configuration
 
 Environment variables (defaults shown):
