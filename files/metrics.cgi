@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # CGI header for busybox httpd
-echo "Content-Type: text/plain; version=0.0.4"
+echo "Content-Type: text/plain; version=0.0.4; charset=utf-8"
 echo
 
 # Helpers

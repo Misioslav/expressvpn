@@ -112,7 +112,7 @@ load_auth_config() {
 import sys
 try:
     import tomllib  # Python 3.11+
-except ModuleNotFoundError:  # pragma: no cover - fallback for Debian bullseye
+except ModuleNotFoundError:  # pragma: no cover - fallback for Python < 3.11 without tomllib
     import tomli as tomllib
 path = sys.argv[1]
 try:

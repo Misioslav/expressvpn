@@ -204,8 +204,13 @@ apply_dns_whitelist() {
     for addr in $dns_list; do
         iptables -C "$chain" -d "${addr}"/32 -p udp -m udp --dport 53 -j ACCEPT 2>/dev/null || \
             iptables -A "$chain" -d "${addr}"/32 -p udp -m udp --dport 53 -j ACCEPT || \
-            log "Failed to whitelist DNS server via ${chain}: ${addr}"
-        log "Allowing DNS server traffic in iptables: ${addr}"
+            log "Failed to whitelist DNS server via ${chain} (UDP): ${addr}"
+
+        iptables -C "$chain" -d "${addr}"/32 -p tcp -m tcp --dport 53 -j ACCEPT 2>/dev/null || \
+            iptables -A "$chain" -d "${addr}"/32 -p tcp -m tcp --dport 53 -j ACCEPT || \
+            log "Failed to whitelist DNS server via ${chain} (TCP): ${addr}"
+
+        log "Allowing DNS server traffic (UDP/TCP) in iptables: ${addr}"
     done
 }
 
