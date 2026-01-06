@@ -169,8 +169,8 @@ if [[ -n "$vpn_if" && -d "/sys/class/net/$vpn_if/statistics" ]]; then
     if [[ ${tx_delta} -lt 0 ]]; then
       tx_delta=0
     fi
-    rx_rate=$((rx_delta / dt))
-    tx_rate=$((tx_delta / dt))
+    rx_rate=$(awk -v d="${rx_delta}" -v t="${dt}" 'BEGIN { if (t > 0) printf "%.6f", d / t; else printf "0"; }')
+    tx_rate=$(awk -v d="${tx_delta}" -v t="${dt}" 'BEGIN { if (t > 0) printf "%.6f", d / t; else printf "0"; }')
   fi
 
   printf 'expressvpn_vpn_interface_info{interface="%s"} 1\n' "${vpn_if}"

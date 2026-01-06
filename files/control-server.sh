@@ -666,7 +666,7 @@ handle_connection() {
     content_length=${content_length:-0}
 
     if (( content_length > 0 )); then
-        body=$(dd bs=1 count="$content_length" 2>/dev/null || printf '')
+        body=$(head -c "$content_length" 2>/dev/null || printf '')
     fi
 
     local response

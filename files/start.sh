@@ -332,10 +332,16 @@ apply_lan_routes() {
         log "Unable to determine default gateway for LAN routes."
         return
     fi
+    local default_iface
+    default_iface=$(ip route show default 2>/dev/null | awk 'NR==1 {print $5}')
+    if [[ -z "$default_iface" ]]; then
+        log "Unable to determine default network interface for LAN routes."
+        return
+    fi
     local cidr_list="${LAN_CIDR//,/ }"
     for cidr in $cidr_list; do
-        ip route replace "$cidr" via "$gateway" dev eth0
-        log "Added LAN route for ${cidr} via ${gateway}"
+        ip route replace "$cidr" via "$gateway" dev "$default_iface"
+        log "Added LAN route for ${cidr} via ${gateway} on ${default_iface}"
     done
 }
 
