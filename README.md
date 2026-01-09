@@ -123,6 +123,7 @@ Environment variables (defaults shown):
 | CODE | ExpressVPN activation code | code |
 | SERVER | Region name or `smart` | smart |
 | PROTOCOL | VPN protocol | lightwayudp |
+| CONNECTION_CHECK_INTERVAL | Seconds between supervision loop checks | 30 |
 | NETWORK | Network Lock (`on`/`off`) | on |
 | ALLOW_LAN | Allow LAN access while Network Lock is on | true |
 | LAN_CIDR | Comma-separated LAN CIDRs for return routes | (empty) |

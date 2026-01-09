@@ -351,6 +351,23 @@ wait_for_connection() {
     fi
 }
 
+supervise_connection_loop() {
+    local interval="${CONNECTION_CHECK_INTERVAL:-30}"
+    local target="${SERVER:-smart}"
+    log "Entering supervision loop (interval ${interval}s) to keep ${target} connected."
+    while true; do
+        if ! check_connected || [[ ! -d /sys/class/net/tun0 ]]; then
+            log "VPN down (missing tun0 or not connected). Attempting reconnect to ${target}..."
+            if expressvpnctl connect "${target}" >/dev/null 2>&1; then
+                wait_for_connection
+            else
+                log "Reconnection attempt to ${target} failed. Will retry in ${interval}s."
+            fi
+        fi
+        sleep "${interval}"
+    done
+}
+
 main() {
     if ! has_ctl; then
         log "expressvpnctl not found; installation failed."
@@ -369,7 +386,7 @@ main() {
         exec "$@"
     fi
 
-    sleep infinity & wait "$!"
+    supervise_connection_loop & wait "$!"
 }
 
 main "$@"
