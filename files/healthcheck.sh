@@ -32,6 +32,12 @@ notify_healthcheck() {
 }
 
 main() {
+    local failure_flag="/tmp/expressvpn/reconnect-failure.flag"
+    if [[ -f "${failure_flag}" ]]; then
+        notify_healthcheck "/fail" || true
+        exit 1
+    fi
+
     local target_ip
     target_ip=$(resolve_check_ip || true)
 
