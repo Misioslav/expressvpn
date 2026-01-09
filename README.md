@@ -1,5 +1,7 @@
 # ExpressVPN
 
+> WARNING: If you are upgrading from an earlier version of this container, read this README carefully, especially the section "Network Lock and LAN Access".
+
 Container based on [polkaned/expressvpn](https://github.com/polkaned/dockerfiles/tree/master/expressvpn) with additional features and automation.
 
 ## Table of Contents
