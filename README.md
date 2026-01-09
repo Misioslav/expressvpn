@@ -114,6 +114,8 @@ services:
     privileged: true
 ```
 
+> **Note:** `start.sh` now begins the supervision loop before honoring an overridden `command`, so any custom wrappers (DNS sync, routing scripts, etc.) can still run while the loop keeps reconnecting the VPN and exposing health failures when the tunnel stays down.
+
 ## Configuration
 
 Environment variables (defaults shown):
@@ -123,6 +125,8 @@ Environment variables (defaults shown):
 | CODE | ExpressVPN activation code | code |
 | SERVER | Region name or `smart` | smart |
 | PROTOCOL | VPN protocol | lightwayudp |
+| CONNECTION_CHECK_INTERVAL | Seconds between supervision loop checks | 30 |
+| RECONNECT_FAILURE_THRESHOLD | Consecutive reconnect failures before marking unhealthy | 3 |
 | NETWORK | Network Lock (`on`/`off`) | on |
 | ALLOW_LAN | Allow LAN access while Network Lock is on | true |
 | LAN_CIDR | Comma-separated LAN CIDRs for return routes | (empty) |
@@ -147,6 +151,13 @@ Environment variables (defaults shown):
 | SOCKS_WHITELIST | Comma-separated IPs bypassing auth | (empty) |
 | SOCKS_AUTH_ONCE | Cache auth by IP (`true`/`false`) | false |
 | SOCKS_LOGS | Enable microsocks logs (`true`/`false`) | true |
+
+### Supervision failure flag
+
+The supervision loop writes `/tmp/expressvpn/reconnect-failure.flag` when
+`RECONNECT_FAILURE_THRESHOLD` consecutive reconnect attempts fail. The
+built-in healthcheck reads that flag and reports `/fail`, which makes Docker
+mark the container as unhealthy until the VPN reconnects and clears the flag.
 
 ## Protocols
 

@@ -351,6 +351,70 @@ wait_for_connection() {
     fi
 }
 
+supervise_connection_loop() {
+    local interval="${CONNECTION_CHECK_INTERVAL:-30}"
+    local target="${SERVER:-smart}"
+    local failure_threshold="${RECONNECT_FAILURE_THRESHOLD:-3}"
+    local failure_flag="/tmp/expressvpn/reconnect-failure.flag"
+    local failure_count=0
+    mkdir -p "$(dirname "${failure_flag}")"
+
+    clear_failure_flag() {
+        if [[ -f "${failure_flag}" ]]; then
+            rm -f "${failure_flag}"
+            log "Cleared persistent failure flag at ${failure_flag}."
+        fi
+    }
+
+    mark_failure_flag() {
+        if [[ ! -f "${failure_flag}" ]]; then
+            touch "${failure_flag}"
+            log "Marked failure flag at ${failure_flag}; healthcheck will report unhealthy."
+        fi
+    }
+
+    log "Entering supervision loop (interval ${interval}s) to keep ${target} connected."
+    while true; do
+        if ! check_connected || [[ ! -d /sys/class/net/tun0 ]]; then
+            log "VPN down (missing tun0 or not connected). Attempting reconnect to ${target}..."
+            if expressvpnctl connect "${target}" >/dev/null 2>&1; then
+                wait_for_connection
+                failure_count=0
+                clear_failure_flag
+            else
+                log "Reconnection attempt to ${target} failed. Will retry in ${interval}s."
+                failure_count=$((failure_count + 1))
+                if [[ "${failure_threshold}" -gt 0 && "${failure_count}" -ge "${failure_threshold}" ]]; then
+                    log "Exceeded ${failure_threshold} consecutive reconnect failures; flagging unhealthy."
+                    mark_failure_flag
+                fi
+            fi
+        else
+            failure_count=0
+            clear_failure_flag
+        fi
+        sleep "${interval}"
+    done
+}
+
+supervisor_pid=""
+
+start_supervisor() {
+    supervise_connection_loop &
+    supervisor_pid=$!
+    log "Started supervision loop (PID ${supervisor_pid})."
+}
+
+stop_supervisor() {
+    if [[ -z "${supervisor_pid:-}" ]]; then
+        return
+    fi
+    log "Stopping supervision loop (PID ${supervisor_pid})."
+    kill "${supervisor_pid}" 2>/dev/null || true
+    wait "${supervisor_pid}" 2>/dev/null || true
+    supervisor_pid=""
+}
+
 main() {
     if ! has_ctl; then
         log "expressvpnctl not found; installation failed."
@@ -365,11 +429,18 @@ main() {
     start_socks_proxy
     start_control_server
 
+    start_supervisor
+    trap 'stop_supervisor' EXIT
+
     if [[ $# -gt 0 ]]; then
-        exec "$@"
+        "$@"
+        exit_code=$?
+        stop_supervisor
+        exit "$exit_code"
     fi
 
-    sleep infinity & wait "$!"
+    wait "${supervisor_pid}"
+    stop_supervisor
 }
 
 main "$@"
