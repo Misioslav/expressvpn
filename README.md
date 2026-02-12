@@ -41,8 +41,8 @@ docker run \
   --env=CODE=code \
   --env=SERVER=smart \
   --cap-add=NET_ADMIN \
+  --cap-add=SYS_PTRACE \
   --device=/dev/net/tun \
-  --privileged \
   --detach=true \
   --tty=true \
   --name=expressvpn \
@@ -106,12 +106,12 @@ services:
       # - WHITELIST_DNS=192.168.1.1,1.1.1.1
     cap_add:
       - NET_ADMIN
+      - SYS_PTRACE
     devices:
       - /dev/net/tun
     stdin_open: true
     tty: true
     command: /bin/bash
-    privileged: true
 ```
 
 > **Note:** `start.sh` now begins the supervision loop before honoring an overridden `command`, so any custom wrappers (DNS sync, routing scripts, etc.) can still run while the loop keeps reconnecting the VPN and exposing health failures when the tunnel stays down.
