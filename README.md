@@ -18,6 +18,7 @@ Container based on [polkaned/expressvpn](https://github.com/polkaned/dockerfiles
 - [Healthcheck](#healthcheck)
 - [DNS Leak Check](#dns-leak-check)
 - [Servers Available](#servers-available)
+- [Troubleshooting](#troubleshooting)
 - [Building](#building)
 - [Download](#download)
 
@@ -146,8 +147,8 @@ Environment variables (defaults shown):
 | SOCKS | Enable SOCKS5 proxy (`on`/`off`) | off |
 | SOCKS_IP | SOCKS bind IP | 0.0.0.0 |
 | SOCKS_PORT | SOCKS port | 1080 |
-| SOCKS_USER | SOCKS username | (empty) |
-| SOCKS_PASS | SOCKS password | (empty) |
+| SOCKS_USER | SOCKS username (leave empty or omit for no auth; legacy `NONE` is treated as empty) | (empty) |
+| SOCKS_PASS | SOCKS password (leave empty or omit for no auth; legacy `NONE` is treated as empty) | (empty) |
 | SOCKS_WHITELIST | Comma-separated IPs bypassing auth | (empty) |
 | SOCKS_AUTH_ONCE | Cache auth by IP (`true`/`false`) | false |
 | SOCKS_LOGS | Enable microsocks logs (`true`/`false`) | true |
@@ -366,6 +367,23 @@ List regions from inside the container:
 ```bash
 expressvpnctl get regions
 ```
+
+## Troubleshooting
+
+### VPN stuck reconnecting on Fedora (missing `tun0`)
+
+On Fedora hosts the container may loop with `VPN down (missing tun0 or not connected)` even though the `/dev/net/tun` device is mapped correctly.
+This happens because the host kernel does not automatically create the `tun0` interface.
+
+**Solution:** create a persistent `tun0` on the host before starting the container:
+
+```bash
+sudo tunctl -t tun0
+```
+
+Install `tunctl` if it is not present (`dnf install tunctl` or the `usermode-tools` / `tun` package for your Fedora version), then re-run the command and start the container.
+
+> See [issue #59](https://github.com/Misioslav/expressvpn/issues/59) for the original report.
 
 ## Building
 

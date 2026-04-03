@@ -214,8 +214,14 @@ start_socks_proxy() {
         return
     fi
 
-    if { [[ -n ${SOCKS_USER:-} ]] && [[ -z ${SOCKS_PASS:-} ]]; } || \
-       { [[ -z ${SOCKS_USER:-} ]] && [[ -n ${SOCKS_PASS:-} ]]; }; then
+    # Normalise legacy "NONE" sentinel values used in older configs.
+    local socks_user="${SOCKS_USER:-}"
+    local socks_pass="${SOCKS_PASS:-}"
+    [[ "${socks_user,,}" == "none" ]] && socks_user=""
+    [[ "${socks_pass,,}" == "none" ]] && socks_pass=""
+
+    if { [[ -n ${socks_user} ]] && [[ -z ${socks_pass} ]]; } || \
+       { [[ -z ${socks_user} ]] && [[ -n ${socks_pass} ]]; }; then
         log "Error: Both SOCKS_USER and SOCKS_PASS must be set, or neither."
         exit 1
     fi
@@ -230,8 +236,8 @@ start_socks_proxy() {
     if [[ -n ${SOCKS_WHITELIST:-} ]]; then
         args+=("-w" "${SOCKS_WHITELIST}")
     fi
-    if [[ -n ${SOCKS_USER:-} ]]; then
-        args+=("-u" "${SOCKS_USER}" "-P" "${SOCKS_PASS}")
+    if [[ -n ${socks_user} ]]; then
+        args+=("-u" "${socks_user}" "-P" "${socks_pass}")
     fi
 
     args+=("-i" "${SOCKS_IP:-0.0.0.0}" "-p" "${SOCKS_PORT:-1080}")
