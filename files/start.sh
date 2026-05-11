@@ -209,6 +209,20 @@ apply_dns_whitelist() {
     done
 }
 
+ensure_dns_whitelist_position() {
+    local chain="xvpn_dns_ip_exceptions"
+    [[ -z "${WHITELIST_DNS:-}" ]] && return
+    command -v iptables >/dev/null 2>&1 || return
+    iptables -S "$chain" >/dev/null 2>&1 || return
+
+    # Remove all existing jumps to our chain, then re-insert at position 1
+    while iptables -C OUTPUT -j "$chain" >/dev/null 2>&1; do
+        iptables -D OUTPUT -j "$chain" >/dev/null 2>&1 || break
+    done
+    iptables -I OUTPUT 1 -j "$chain" >/dev/null 2>&1 \
+        || log "Failed to re-position DNS whitelist chain ${chain} at OUTPUT 1."
+}
+
 start_socks_proxy() {
     if [[ ${SOCKS:-off} != "on" ]]; then
         return
@@ -355,6 +369,7 @@ wait_for_connection() {
     if ! wait_for_condition 15 2 check_connected; then
         log "Timed out waiting for VPN connection."
     fi
+    ensure_dns_whitelist_position
 }
 
 supervise_connection_loop() {
