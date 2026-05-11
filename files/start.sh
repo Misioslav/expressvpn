@@ -211,16 +211,16 @@ apply_dns_whitelist() {
 
 ensure_dns_whitelist_position() {
     local chain="xvpn_dns_ip_exceptions"
-    [[ -z "${WHITELIST_DNS:-}" ]] && return
-    command -v iptables >/dev/null 2>&1 || return
-    iptables -S "$chain" >/dev/null 2>&1 || return
+    [[ -z "${WHITELIST_DNS:-}" ]] && return 0
+    command -v iptables >/dev/null 2>&1 || return 0
+    iptables -S "$chain" >/dev/null 2>&1 || return 0
 
-    # Remove all existing jumps to our chain, then re-insert at position 1
     while iptables -C OUTPUT -j "$chain" >/dev/null 2>&1; do
         iptables -D OUTPUT -j "$chain" >/dev/null 2>&1 || break
     done
     iptables -I OUTPUT 1 -j "$chain" >/dev/null 2>&1 \
         || log "Failed to re-position DNS whitelist chain ${chain} at OUTPUT 1."
+    return 0
 }
 
 start_socks_proxy() {
