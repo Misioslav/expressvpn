@@ -24,7 +24,7 @@ Container based on [polkaned/expressvpn](https://github.com/polkaned/dockerfiles
 
 ## Features
 
-- ExpressVPN 5.x CLI (`expressvpnctl`) with headless activation.
+- ExpressVPN 14.x CLI (`expressvpnctl`) with headless activation.
 - Automatic activation via `CODE` and background mode enable.
 - Protocol selection with validation.
 - Network Lock support with optional LAN access and routed subnets.
@@ -124,7 +124,7 @@ Environment variables (defaults shown):
 | ENV | Description | Default |
 | :--- | :--- | :---: |
 | CODE | ExpressVPN activation code | code |
-| SERVER | Region name or `smart` | smart |
+| SERVER | Region ID or `smart` | smart |
 | PROTOCOL | VPN protocol | lightwayudp |
 | CONNECTION_CHECK_INTERVAL | Seconds between supervision loop checks | 30 |
 | RECONNECT_FAILURE_THRESHOLD | Consecutive reconnect failures before marking unhealthy | 3 |
@@ -359,9 +359,11 @@ curl -s https://raw.githubusercontent.com/macvk/dnsleaktest/refs/heads/master/dn
 
 ## Servers Available
 
-Set `SERVER=smart` or any region name.
+Set `SERVER=smart` or an ExpressVPN region ID.
 On startup with `SERVER=smart`, the container waits briefly for the smart location
 to refresh before connecting, so the first connection aligns with the latest smart region.
+Unnumbered IDs are retried with `-1`, so values like `usa-new-york` can resolve to
+`usa-new-york-1`.
 List regions from inside the container:
 
 ```bash

@@ -5,6 +5,14 @@ log() {
     echo "[start] $*"
 }
 
+trim() {
+    if [[ $# -gt 0 ]]; then
+        printf '%s' "$1"
+    else
+        cat
+    fi | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
 has_ctl() {
     command -v expressvpnctl >/dev/null 2>&1
 }
@@ -142,6 +150,37 @@ check_connected() {
     [[ "$(expressvpnctl get connectionstate 2>/dev/null || true)" == "Connected" ]]
 }
 
+region_candidates() {
+    local region="$1"
+    local normalized
+
+    normalized=$(printf '%s' "$region" | trim | tr '[:upper:] _' '[:lower:]--' | sed 's/--*/-/g;s/^-//;s/-$//')
+    [[ -z "$normalized" ]] && normalized="smart"
+
+    printf '%s\n' "$normalized"
+    if [[ "$normalized" != "smart" && ! "$normalized" =~ -[0-9]+$ ]]; then
+        printf '%s-1\n' "$normalized"
+    fi
+}
+
+connect_region() {
+    local region="$1"
+    local candidate output last_output=""
+
+    while IFS= read -r candidate; do
+        if output=$(expressvpnctl connect "$candidate" 2>&1); then
+            if [[ "$candidate" != "$region" ]]; then
+                log "Resolved SERVER ${region} to ${candidate}"
+            fi
+            return 0
+        fi
+        last_output="$output"
+    done < <(region_candidates "$region")
+
+    [[ -n "$last_output" ]] && log "$last_output"
+    return 1
+}
+
 configure_preferences() {
     set_protocol "${PROTOCOL:-lightwayudp}"
     bash /expressvpn/uname.sh
@@ -156,7 +195,7 @@ configure_preferences() {
     if [[ "${SERVER:-smart}" == "smart" ]]; then
         wait_for_smart_location
     fi
-    if ! expressvpnctl connect "${SERVER:-smart}"; then
+    if ! connect_region "${SERVER:-smart}"; then
         log "Unable to connect to ${SERVER:-smart}"
         exit 1
     fi
@@ -398,7 +437,7 @@ supervise_connection_loop() {
     while true; do
         if ! check_connected || [[ ! -d /sys/class/net/tun0 ]]; then
             log "VPN down (missing tun0 or not connected). Attempting reconnect to ${target}..."
-            if expressvpnctl connect "${target}" >/dev/null 2>&1; then
+            if connect_region "${target}" >/dev/null 2>&1; then
                 wait_for_connection
                 failure_count=0
                 clear_failure_flag

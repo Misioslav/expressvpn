@@ -40,7 +40,7 @@ ENV CODE="code" \
     SOCKS_PORT="1080" \
     SOCKS_WHITELIST=""
 
-ARG EXPRESSVPN_VERSION="5.1.0.12141"
+ARG EXPRESSVPN_VERSION="14.2.0.13656"
 ARG EXPRESSVPN_RUN_URL="https://www.expressvpn.works/clients/linux/expressvpn-linux-universal-${EXPRESSVPN_VERSION}_release.run"
 COPY files/ /expressvpn/
 COPY --from=microsocks-builder /usr/local/bin/microsocks /usr/local/bin/microsocks

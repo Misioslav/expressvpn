@@ -57,6 +57,33 @@ trim() {
     fi | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
+region_candidates() {
+    local region="$1"
+    local normalized
+
+    normalized=$(printf '%s' "$region" | trim | tr '[:upper:] _' '[:lower:]--' | sed 's/--*/-/g;s/^-//;s/-$//')
+    [[ -z "$normalized" ]] && normalized="smart"
+
+    printf '%s\n' "$normalized"
+    if [[ "$normalized" != "smart" && ! "$normalized" =~ -[0-9]+$ ]]; then
+        printf '%s-1\n' "$normalized"
+    fi
+}
+
+set_region() {
+    local region="$1"
+    local candidate
+
+    while IFS= read -r candidate; do
+        if expressvpnctl set region "$candidate" >/dev/null 2>&1; then
+            printf '%s' "$candidate"
+            return 0
+        fi
+    done < <(region_candidates "$region")
+
+    return 1
+}
+
 load_auth_config() {
     ROLE_NAMES=()
     ROLE_AUTH_TYPES=()
@@ -413,14 +440,23 @@ run_cloudflare_speed_test() {
 
 connect_server() {
     local server="$1"
-    local output success="false"
-    if output=$(expressvpnctl connect "$server" 2>&1); then
-        success="true"
-    fi
+    local output success="false" resolved=""
+    local candidate last_output=""
+
+    while IFS= read -r candidate; do
+        if output=$(expressvpnctl connect "$candidate" 2>&1); then
+            success="true"
+            resolved="$candidate"
+            last_output="$output"
+            break
+        fi
+        last_output="$output"
+    done < <(region_candidates "$server")
 
     jq -n --arg success "$success" \
-          --arg message "$output" \
-          '{success: ($success == "true"), message: $message}'
+          --arg message "$last_output" \
+          --arg server "$resolved" \
+          '{success: ($success == "true"), message: $message, server: $server}'
 }
 
 disconnect_vpn() {
@@ -504,8 +540,10 @@ update_vpn_settings() {
     fi
 
     if [[ -n "$region" ]]; then
-        if expressvpnctl set region "$region" >/dev/null 2>&1; then
+        local resolved_region
+        if resolved_region=$(set_region "$region"); then
             applied+=("region")
+            region="$resolved_region"
         else
             errors+=("region")
         fi
@@ -536,7 +574,8 @@ update_vpn_settings() {
         return
     fi
 
-    jq -n --argjson applied "$applied_json" '{success: true, applied: $applied}'
+    jq -n --argjson applied "$applied_json" --arg region "$region" \
+        '{success: true, applied: $applied, region: $region}'
 }
 
 get_public_ip_short() {
