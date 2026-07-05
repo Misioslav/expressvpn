@@ -52,7 +52,7 @@ restart_service() {
 }
 
 wait_for_daemon() {
-    wait_for_condition 10 2 check_daemon
+    wait_for_condition 60 2 check_daemon
 }
 
 activate_account() {
