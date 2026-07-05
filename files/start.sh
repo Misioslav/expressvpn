@@ -143,7 +143,7 @@ wait_for_condition() {
 }
 
 check_daemon() {
-    expressvpnctl status >/dev/null 2>&1
+    timeout 5s expressvpnctl status >/dev/null 2>&1
 }
 
 check_connected() {
