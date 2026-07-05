@@ -58,6 +58,7 @@ RUN set -eux; \
         procps \
         psmisc \
         libatomic1 \
+        libdbus-1-3 \
         libglib2.0-0 \
         busybox \
         socat \
